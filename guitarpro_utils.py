@@ -62,6 +62,8 @@ class Note(object):
         self.duration = duration
         self.string = string
 
+        # TODO - specify techniques/effects somehow
+
     def extend_note(self, duration):
         """
         Extend the note by a specified amount of time.
@@ -100,13 +102,13 @@ class NoteTracker(object):
         self.string_keys = librosa.midi_to_note(tuning)
 
         # Dictionary to hold all notes
-        self.stacked_gpro_notes = dict()
+        self.gpro_notes_by_string = dict()
         # Loop though the tuning from lowest to highest note
         for pitch in sorted(tuning):
             # Determine the corresponding key for the string
             key = librosa.midi_to_note(pitch)
             # Add an empty list as an entry for the string
-            self.stacked_gpro_notes[key] = list()
+            self.gpro_notes_by_string[key] = list()
 
     def set_current_tempo(self, tempo=None):
         """
@@ -153,23 +155,15 @@ class NoteTracker(object):
           Amount of time the note is active
         """
 
-        # TODO - see https://github.com/Perlence/PyGuitarPro/blob/master/guitarpro/models.py
-        #      - for potential information we should track in JAMS files
-        #      - ... or should we maintain score as tokens (https://github.com/dada-bots/dadaGP)?
-
         # Extraction all relevant note information
         string_idx, fret, type = gpro_note.string - 1, gpro_note.value, gpro_note.type.name
 
-        # TODO - determine how to deal with these (and other) NoteEffects
-        if gpro_note.effect.ghostNote:
-            pass
-        if gpro_note.effect.letRing:
-            pass
-        if gpro_note.effect.staccato:
-            pass
+        # TODO - extract information from NoteEffect and maybe BeatEffect (not MixTableChange)
 
         # Scale the duration by the duration percentage
         duration *= gpro_note.durationPercent
+
+        # TODO - what does swapAccidentals do?
 
         # Create a note object to keep track of the GuitarPro note
         note = Note(fret, onset, duration, string_idx)
@@ -257,8 +251,8 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
 
     Returns
     ----------
-    note_tracker : TODO
-      TODO
+    note_tracker : NoteTracker
+      Tracking object to maintain notes and their attributes
     """
 
     # Make a copy of the track, so that it can be modified without consequence

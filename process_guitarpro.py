@@ -5,6 +5,7 @@ from guitarpro_utils import validate_gpro_track, parse_notes_gpro_track
 
 # Regular imports
 import guitarpro
+import jams
 import os
 
 
@@ -98,20 +99,32 @@ def write_jams_guitarpro(gpro_path, jams_dir):
       Directory under which to place the JAMS files
     """
 
-    # Make sure the JAMS directory exists
-    os.makedirs(jams_dir, exist_ok=True)
-
     # Extract the GuitarPro data from the file
     gpro_data = guitarpro.parse(gpro_path)
 
     # Loop through the instrument tracks in the GuitarPro data
     for t, gpro_track in enumerate(gpro_data.tracks):
+        # Make sure the JAMS directory exists
+        os.makedirs(jams_dir, exist_ok=True)
+
         # Make sure the GuitarPro file can be processed for symbolic datasets
         if validate_gpro_track(gpro_track):
-            # Extract notes from the track, given the listed tempo
-            parse_notes_gpro_track(gpro_track, gpro_data.tempo)
+            # Create a new JAMS object
+            jam = jams.JAMS()
 
-            # TODO - return note tracking object and use it to write jams files
+            # TODO - write all jams metadata here
+
+            # Extract notes from the track, given the listed tempo
+            note_tracker = parse_notes_gpro_track(gpro_track, gpro_data.tempo)
+
+            # Write the note predictions to a JAMS file
+            note_tracker.write_jams()
+
+            # Construct a path for saving the JAMS data
+            jams_path = os.path.join(jams_dir, gpro_track.name + '.jams')
+
+            # Save as a JAMS file
+            jam.save(jams_path)
 
 
 if __name__ == '__main__':
