@@ -1,10 +1,10 @@
-# Author: Jonathan Driedger (Chordify)
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 from copy import deepcopy
 
 import numpy as np
 import librosa # TODO - can likely remove this dependency
+
 
 TICKS_PER_QUARTER_NOTE = 960
 NOTE_TYPE_ENUM_REST    = 'rest'
@@ -193,37 +193,13 @@ class NoteTracker(object):
         else:
             pass
 
-    """
-    def get_stacked_notes(self):
-        "/""
-        Obtain the tracked GuitarPro notes as stacked notes.
+    def write_jams(self):
+        """
+        TODO
+        """
 
-        Returns
-        ----------
-        stacked_notes : dict
-          Dictionary containing (slice -> (pitches, intervals)) pairs
-        "/""
-
-        # Initialize a new dictionary to hold the notes
-        stacked_notes = dict()
-
-        # Loop through all strings
-        for key in self.stacked_gpro_notes.keys():
-            # Initialize empty arrays to hold note contents
-            pitches, intervals = np.empty(0), np.empty((0, 2))
-
-            # Loop through all the GuitarPro notes for the string
-            for note in self.stacked_gpro_notes[key]:
-                # Add the absolute pitch of the note
-                pitches = np.append(pitches, librosa.note_to_midi(key) + note.fret)
-                # Add the onset and offset of the note
-                intervals = np.append(intervals, [[note.onset, note.onset + note.duration]], axis=0)
-
-            # Populate the dictionary with the notes for the string
-            stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, key))
-
-        return stacked_notes
-    """
+        # TODO
+        pass
 
 
 def validate_gpro_track(gpro_track, tuning=None):
@@ -263,12 +239,14 @@ def validate_gpro_track(gpro_track, tuning=None):
     # Determine if the track is valid
     valid = not percussive# and guitar and expected_strings
 
+    # TODO - add to this function as needed...
+
     return valid
 
 
-def extract_stacked_notes_gpro_track(gpro_track, default_tempo):
+def parse_notes_gpro_track(gpro_track, default_tempo):
     """
-    Extract MIDI notes spread across strings within a GuitarPro track into a dictionary.
+    Track MIDI notes spread across strings within a GuitarPro track.
 
     Parameters
     ----------
@@ -279,8 +257,8 @@ def extract_stacked_notes_gpro_track(gpro_track, default_tempo):
 
     Returns
     ----------
-    stacked_notes : dict
-      Dictionary containing (slice -> (pitches, intervals)) pairs
+    note_tracker : TODO
+      TODO
     """
 
     # Make a copy of the track, so that it can be modified without consequence
@@ -387,7 +365,4 @@ def extract_stacked_notes_gpro_track(gpro_track, default_tempo):
             # Increment the measure pointer
             current_measure += 1
 
-    # Obtain the final tracked notes
-    #stacked_notes = note_tracker.get_stacked_notes()
-
-    #return stacked_notes
+    return note_tracker

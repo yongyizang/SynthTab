@@ -1,13 +1,12 @@
-# Author: Jonathan Driedger (Chordify)
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
-from guitarpro_utils import validate_gpro_track, extract_stacked_notes_gpro_track
+from guitarpro_utils import validate_gpro_track, parse_notes_gpro_track
 
 # Regular imports
-import numpy as np
 import guitarpro
 import os
+
 
 VALID_GP_EXTS = ['.gp3', '.gp4', '.gp5']
 INVALID_EXTS = ['.pygp', '.gp2tokens2gp']
@@ -87,11 +86,9 @@ def get_valid_files(base_dir, ignore_duplicates=True):
     return tracked_files, tracked_paths
 
 
-def guitarpro_to_jams(gpro_path, jams_dir):
+def write_jams_guitarpro(gpro_path, jams_dir):
     """
     Convert a GuitarPro file to a JAMS file specifying notes for each track.
-
-    TODO - add other stuff (beats, key, tempo, etc.) to the JAMS files
 
     Parameters
     ----------
@@ -112,27 +109,30 @@ def guitarpro_to_jams(gpro_path, jams_dir):
         # Make sure the GuitarPro file can be processed for symbolic datasets
         if validate_gpro_track(gpro_track):
             # Extract notes from the track, given the listed tempo
-            extract_stacked_notes_gpro_track(gpro_track, gpro_data.tempo)
+            parse_notes_gpro_track(gpro_track, gpro_data.tempo)
 
-            # TODO - what exactly do we want here
+            # TODO - return note tracking object and use it to write jams files
 
 
 if __name__ == '__main__':
     # Construct a path to the base directory
-    base_dir = '/home/rockstar/Desktop/Datasets/DadaGP'
+    #gpro_dir = 'path/to/DadaGP'
+    gpro_dir = '/home/rockstar/Desktop/Datasets/DadaGP'
 
-    # Search the specified path for GuitarPro files
-    tracked_files, tracked_paths = get_valid_files(base_dir)
+    # Search the specified path for valid GuitarPro files
+    tracked_files, tracked_paths = get_valid_files(gpro_dir)
 
     # Construct a path to the JAMS directory
-    jams_dir = os.path.join(base_dir, 'jams')
+    jams_dir = os.path.join(gpro_dir, 'jams_notes')
 
     # Loop through the tracked GuitarPro files
-    for k, gpro_file in enumerate(tracked_files):
+    for gpro_file, gpro_path in zip(tracked_files, tracked_paths):
         print(f'Processing track \'{gpro_file}\'...')
 
-        # Construct a path to the GuitarPro file
-        gpro_path = os.path.join(tracked_paths[k], gpro_file)
+        # Construct a path to GuitarPro file and JAMS output directory
+        gpro_path_ = os.path.join(gpro_path, gpro_file)
+        # TODO - "." might be a problem for some OS
+        jams_dir_ = os.path.join(jams_dir, gpro_file)
 
         # Perform the conversion
-        guitarpro_to_jams(gpro_path, jams_dir)
+        write_jams_guitarpro(gpro_path_, jams_dir_)
