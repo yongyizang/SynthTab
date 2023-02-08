@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 import librosa # TODO - can likely remove this dependency
+import jams
 
 
 TICKS_PER_QUARTER_NOTE = 960
@@ -11,6 +12,9 @@ NOTE_TYPE_ENUM_REST    = 'rest'
 NOTE_TYPE_ENUM_NORMAL  = 'normal'
 NOTE_TYPE_ENUM_TIE     = 'tie'
 NOTE_TYPE_ENUM_DEAD    = 'dead'
+
+# Add our custom schema for guitar notes
+jams.schema.add_namespace('note_tab.json')
 
 
 def ticks_to_seconds(ticks, tempo):
@@ -173,11 +177,11 @@ class NoteTracker(object):
 
         if type == NOTE_TYPE_ENUM_NORMAL:
             # Add the new note to the dictionary under the respective string
-            self.stacked_gpro_notes[key].append(note)
+            self.gpro_notes_by_string[key].append(note)
         elif type == NOTE_TYPE_ENUM_TIE:
             # Obtain the last note that occurred on the string
-            last_gpro_note = self.stacked_gpro_notes[key][-1] \
-                             if len(self.stacked_gpro_notes[key]) else None
+            last_gpro_note = self.gpro_notes_by_string[key][-1] \
+                             if len(self.gpro_notes_by_string[key]) else None
             # Determine if the last note should be extended
             if last_gpro_note is not None:
                 # Determine how much to extend the note
@@ -189,11 +193,42 @@ class NoteTracker(object):
 
     def write_jams(self):
         """
-        TODO
+        Write the tracked note data to a JAMS file.
         """
 
-        # TODO
-        pass
+        # Create a new JAMS object
+        jam = jams.JAMS()
+
+        # TODO - write available metadata here
+
+        # Loop through all tracked strings
+        # TODO - fix tuning so that only string idx and base tuning is stored
+        for s in self.string_keys:
+            # Create a new annotation for guitar tablature
+            string_data = jams.Annotation(namespace='note_tab', time=0, duration=0)
+            # Set the source (string) for the annotations
+            string_data.annotation_metadata = jams.AnnotationMetadata(data_source=s)
+            # Loop through all notes
+            for n in self.gpro_notes_by_string[s]:
+                # Dictionary of tablature note attributes
+                value = {
+                    'fret' : n.fret,
+                    #'ex_bool' : False,
+                    'ex_str' : 'example'
+                }
+                # Add an annotation for the note
+                string_data.append(time=n.onset, duration=n.duration, value=value)
+            # Add the annotation to the JAM
+            jam.annotations.append(string_data)
+
+        # Add the total duration to the top-level file metadata
+        jam.file_metadata.duration = 0  # TODO
+
+        # Add the total duration to each string's metadata
+        for string_data in jam.annotations:
+            string_data.duration = 0  # TODO
+
+        return jam
 
 
 def validate_gpro_track(gpro_track, tuning=None):
@@ -358,5 +393,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                 repeat_count = 0
             # Increment the measure pointer
             current_measure += 1
+
+    # TODO - use current_time for duration of JAMS file??
 
     return note_tracker

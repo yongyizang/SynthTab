@@ -1,0 +1,12 @@
+{"note_tab":
+    {
+        "dense": false,
+        "value": { "type": "object" },
+        "properties": {
+            "fret": { "type": "number" },
+            "ex_bool": { "type": "boolean" },
+            "ex_str": { "type": "string" }
+        },
+        "description": "Guitar notes specified as fret numbers"
+    }
+}
