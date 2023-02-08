@@ -170,6 +170,7 @@ class NoteTracker(object):
         # TODO - what does swapAccidentals do?
 
         # Create a note object to keep track of the GuitarPro note
+        # TODO - specify time in ticks instead of seconds
         note = Note(fret, onset, duration, string_idx)
 
         # Get the key corresponding to the string index
