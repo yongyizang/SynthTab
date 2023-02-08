@@ -213,8 +213,10 @@ class NoteTracker(object):
                 # Dictionary of tablature note attributes
                 value = {
                     'fret' : n.fret,
-                    #'ex_bool' : False,
+                    'ex_bool' : False,
                     'ex_str' : 'example'
+                    # TODO - no warnings are thrown for key not specified in schema
+                    # TODO - no warnings are thrown when key specified in schema omitted
                 }
                 # Add an annotation for the note
                 string_data.append(time=n.onset, duration=n.duration, value=value)
