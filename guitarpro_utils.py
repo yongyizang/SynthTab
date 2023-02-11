@@ -139,7 +139,7 @@ class NoteTracker(object):
 
         Parameters
         ----------
-        gpro_note : PyGuitarPro Note object
+        gpro_note : guitarpro.Note
           GuitarPro note information
         onset : float
           Time the note begins in seconds
@@ -187,8 +187,6 @@ class NoteTracker(object):
         # Create a new JAMS object
         jam = jams.JAMS()
 
-        # TODO - write available metadata here?
-
         # Loop through all tracked strings
         for s, p in zip(self.string_idcs, self.open_tuning):
             # Create a new annotation for guitar tablature
@@ -210,9 +208,6 @@ class NoteTracker(object):
             # Add the annotation to the JAM
             jam.annotations.append(string_data)
 
-        # Add the total duration to the top-level file metadata
-        jam.file_metadata.duration = 0  # TODO
-
         return jam
 
 
@@ -222,7 +217,7 @@ def validate_gpro_track(gpro_track):
 
     Parameters
     ----------
-    gpro_track : Track object (PyGuitarPro)
+    gpro_track : guitarpro.Track
       GuitarPro track to validate
 
     Returns
@@ -231,27 +226,27 @@ def validate_gpro_track(gpro_track):
       Whether the GuitarPro track is considered valid
     """
 
-    """
-    if tuning is None:
-        # Default the guitar tuning
-        tuning = librosa.note_to_midi(tools.DEFAULT_GUITAR_TUNING)
-    """
-
     # Determine if this is a percussive track
-    percussive = gpro_track.isPercussionTrack
+    is_percussive = gpro_track.isPercussionTrack
 
-    """
     # Determine if this is a valid guitar track
-    guitar = (24 <= gpro_track.channel.instrument <= 31)
+    is_guitar = (24 <= gpro_track.channel.instrument <= 31)
 
-    # Determine if the track has the expected number of strings in the expected tuning
-    expected_strings = set(tuning) == set([s.value for s in gpro_track.strings])
-    """
+    # TODO - support guitar fret noise (120)?
+
+    # Determine if this is a valid bass track
+    # TODO - do we want to support synth bass (38-39)
+    is_bass = (32 <= gpro_track.channel.instrument <= 39)
+
+    # Determine if this is a valid banjo track
+    is_banjo = gpro_track.isBanjoTrack or gpro_track.channel.instrument == 105
+
+    if is_banjo:
+        # TODO - verify instrument code matches
+        print()
 
     # Determine if the track is valid
-    valid = not percussive# and guitar and expected_strings
-
-    # TODO - add to this function as needed...
+    valid = not is_percussive and (is_guitar or is_bass or is_banjo)
 
     return valid
 
@@ -262,7 +257,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
 
     Parameters
     ----------
-    gpro_track : Track object (PyGuitarPro)
+    gpro_track : guitarpro.Track
       GuitarPro track data
     default_tempo : int
       Track tempo for inferring note onset and duration
@@ -271,6 +266,8 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     ----------
     note_tracker : NoteTracker
       Tracking object to maintain notes and their attributes
+    total_time : float
+      Total duration of the track in seconds
     """
 
     # Make a copy of the track, so that it can be modified without consequence
@@ -280,7 +277,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     note_tracker = NoteTracker(default_tempo, gpro_track.strings)
 
     # Keep track of the amount of time processed so far
-    current_time = None
+    total_time = None
 
     # Determine how many measures are in the track
     total_num_measures = len(gpro_track.measures)
@@ -303,6 +300,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         if measure.header.repeatAlternative != 0:
             # The 'repeatAlternative' attribute seems to be encoded as binary a binary vector,
             # where the integers k in the measure header represent a 1 in the kth digit
+            # TODO - remove numpy dependency (sum() should work)
             alt_repeat_num = np.sum([2 ** k for k in range(repeat_count)])
             # Check if it is time to jump past the repeat close
             if alt_repeat_num >= measure.header.repeatAlternative:
@@ -326,9 +324,9 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         for v, voice in enumerate(measure.voices):
             # Loop through the beat divisions of the measure
             for beat in voice.beats:
-                if current_time is None:
+                if total_time is None:
                     # Set the current time to the start of the measure
-                    current_time = ticks_to_seconds(measure.start, note_tracker.get_current_tempo())
+                    total_time = ticks_to_seconds(measure.start, note_tracker.get_current_tempo())
 
                 # Check if there are any tempo changes
                 if beat.effect.mixTableChange is not None:
@@ -344,20 +342,20 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                 # Loop through the notes in the beat division
                 for note in beat.notes:
                     # Add the note to the tracker
-                    note_tracker.track_note(note, current_time + measure_time[v], duration_seconds)
+                    note_tracker.track_note(note, total_time + measure_time[v], duration_seconds)
 
                 # Accumulate the time of the beat
                 measure_ticks[v] += beat.duration.time
                 measure_time[v] += duration_seconds
 
         # Add the measure time to the current accumulated time
-        current_time += measure_time[0]
+        total_time += measure_time[0]
         # Check if all ticks were counted
         if measure_ticks[0] != measure.length:
             # Compute the number of ticks missing
             remaining_ticks = measure.length - measure_ticks[0]
             # Add the time for the missing ticks
-            current_time += ticks_to_seconds(remaining_ticks, note_tracker.get_current_tempo())
+            total_time += ticks_to_seconds(remaining_ticks, note_tracker.get_current_tempo())
 
         if measure.repeatClose > 0:
             # Set the (alternate repeat) jump to the next measure
@@ -375,6 +373,4 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
             # Increment the measure pointer
             current_measure += 1
 
-    # TODO - use current_time for duration of JAMS file??
-
-    return note_tracker
+    return note_tracker, total_time

@@ -75,17 +75,23 @@ def write_jams_guitarpro(gpro_path, jams_dir):
 
         # Make sure the GuitarPro file can be processed for symbolic datasets
         if validate_gpro_track(gpro_track):
-            # Extract notes from the track, given the listed tempo
-            note_tracker = parse_notes_gpro_track(gpro_track, gpro_data.tempo)
+            # Extract the notes and duration of the track, given a global tempo
+            note_tracker, duration = parse_notes_gpro_track(gpro_track, gpro_data.tempo)
 
-            # Write the note predictions to a JAMS file
+            # Write the note predictions to a JAMS object
             jam = note_tracker.write_jams()
+
+            # Add the total duration to the top-level file meta-data
+            jam.file_metadata.duration = duration
+
+            # Write track meta-data to the JAMS object
+            # TODO - key_at_start, tempo_at_start, autoBrush, or autoLetRing?
+            jam.sandbox.update(instrument=gpro_track.channel.instrument,
+                               fret_count=gpro_track.fretCount,)
+                               #comments=' '.join(gpro_data.notice))
 
             # Construct a path for saving the JAMS data
             jams_path = os.path.join(jams_dir, gpro_track.name + '.jams')
-
-            # TODO - is there any metadata to write here?
-            # TODO - write instrument here?
 
             # Save as a JAMS file
             jam.save(jams_path)
@@ -108,7 +114,7 @@ if __name__ == '__main__':
 
         # Construct a path to GuitarPro file and JAMS output directory
         gpro_path_ = os.path.join(gpro_path, gpro_file)
-        jams_dir_ = os.path.join(*([jams_dir] + gpro_file.split('.')))
+        jams_dir_ = os.path.join(jams_dir, gpro_file.replace('.', ' - '))
 
         # Perform the conversion
         write_jams_guitarpro(gpro_path_, jams_dir_)
