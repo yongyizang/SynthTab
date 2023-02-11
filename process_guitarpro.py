@@ -10,16 +10,9 @@ import os
 
 VALID_GP_EXTS = ['.gp3', '.gp4', '.gp5']
 INVALID_EXTS = ['.pygp', '.gp2tokens2gp']
-COPY_TAG = ' copy'
-
-# TODO - there are still some ways for duplicates to get in
-#      - e.g., very similar but not quite exact names
-#      - e.g., alternate version in another directory (ex: Jeopardy.gp3/4)
-#      - (n) tags when alternate version already exists (it doesn't always)
-#        - could this be true for the "copy" tag as well?
 
 
-def get_valid_files(base_dir, ignore_duplicates=True):
+def get_valid_files(base_dir):
     """
     Walk through a base directory and keep track of all relevant GuitarPro files.
 
@@ -27,8 +20,6 @@ def get_valid_files(base_dir, ignore_duplicates=True):
     ----------
     base_dir : string
       Path to the base directory to recursively search
-    ignore_duplicates : bool
-      Whether to remove exact and inferred duplicates
 
     Returns
     ----------
@@ -51,31 +42,7 @@ def get_valid_files(base_dir, ignore_duplicates=True):
         valid_files = sorted([f for f in files
                               if os.path.splitext(f)[-1] in VALID_GP_EXTS
                               and INVALID_EXTS[0] not in f
-                              and INVALID_EXTS[1] not in f
-                              # Remove (exact) duplicates
-                              and not (f in tracked_files and ignore_duplicates)])
-
-        # Remove (inferred) duplicates within the directory
-        if ignore_duplicates:
-            # Obtain a list of copied files
-            copied_files = [f for f in valid_files if COPY_TAG in f]
-
-            # Loop through copies in the directory
-            for f in copied_files:
-                # Remove copies
-                valid_files.remove(f)
-
-            # Create a copy of the valid files to iterate through
-            valid_files_copy = valid_files.copy()
-
-            # Loop through the current valid files list
-            for i in range(0, len(valid_files) - 1):
-                # Obtain the current and next valid file
-                curr_file, next_file = valid_files_copy[i], valid_files_copy[i + 1]
-                # Check if the two files share the same name
-                if os.path.splitext(curr_file)[0] == os.path.splitext(next_file)[0]:
-                    # Remove the current file (should be earlier version)
-                    valid_files.remove(curr_file)
+                              and INVALID_EXTS[1] not in f])
 
         # Add valid files to tracked list
         tracked_files += valid_files
@@ -118,6 +85,7 @@ def write_jams_guitarpro(gpro_path, jams_dir):
             jams_path = os.path.join(jams_dir, gpro_track.name + '.jams')
 
             # TODO - is there any metadata to write here?
+            # TODO - write instrument here?
 
             # Save as a JAMS file
             jam.save(jams_path)
@@ -140,8 +108,7 @@ if __name__ == '__main__':
 
         # Construct a path to GuitarPro file and JAMS output directory
         gpro_path_ = os.path.join(gpro_path, gpro_file)
-        # TODO - "." might be a problem for some OS
-        jams_dir_ = os.path.join(jams_dir, gpro_file)
+        jams_dir_ = os.path.join(*([jams_dir] + gpro_file.split('.')))
 
         # Perform the conversion
         write_jams_guitarpro(gpro_path_, jams_dir_)

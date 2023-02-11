@@ -1,17 +1,11 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
+from guitarpro import NoteType, Duration
 from copy import deepcopy
 
 import numpy as np
-import librosa # TODO - can likely remove this dependency
 import jams
 
-
-TICKS_PER_QUARTER_NOTE = 960
-NOTE_TYPE_ENUM_REST    = 'rest'
-NOTE_TYPE_ENUM_NORMAL  = 'normal'
-NOTE_TYPE_ENUM_TIE     = 'tie'
-NOTE_TYPE_ENUM_DEAD    = 'dead'
 
 # Add our custom schema for guitar notes
 jams.schema.add_namespace('note_tab.json')
@@ -35,7 +29,7 @@ def ticks_to_seconds(ticks, tempo):
     """
 
     # Number of seconds per beat times number of quarter beats
-    time = (60 / tempo) * ticks / TICKS_PER_QUARTER_NOTE
+    time = (60 / tempo) * ticks / Duration.quarterTime
 
     return time
 
@@ -86,7 +80,7 @@ class NoteTracker(object):
     Simple class to keep track of state while tracking notes in a GuitarPro file.
     """
 
-    def __init__(self, default_tempo, tuning=None):
+    def __init__(self, default_tempo, tuning):
         """
         Initialize the state of the tracker.
 
@@ -94,7 +88,7 @@ class NoteTracker(object):
         ----------
         default_tempo : int or float
           Underlying tempo of the track
-        tuning : list or ndarray
+        tuning : list of guitarpro.GuitarString
             MIDI pitch of each open-string
         """
 
@@ -102,17 +96,11 @@ class NoteTracker(object):
         self.default_tempo = default_tempo
         self.current_tempo = default_tempo
 
-        # Keep track of the tuning and string names
-        self.string_keys = librosa.midi_to_note(tuning)
+        # Determine the string indices and open tuning for all strings of the track
+        self.string_idcs, self.open_tuning = zip(*[(s.number, s.value) for s in tuning])
 
-        # Dictionary to hold all notes
-        self.gpro_notes_by_string = dict()
-        # Loop though the tuning from lowest to highest note
-        for pitch in sorted(tuning):
-            # Determine the corresponding key for the string
-            key = librosa.midi_to_note(pitch)
-            # Add an empty list as an entry for the string
-            self.gpro_notes_by_string[key] = list()
+        # Initialize a dictionary to hold all notes
+        self.gpro_notes = {s : list() for s in self.string_idcs}
 
     def set_current_tempo(self, tempo=None):
         """
@@ -159,37 +147,36 @@ class NoteTracker(object):
           Amount of time the note is active
         """
 
-        # Extraction all relevant note information
-        string_idx, fret, type = gpro_note.string - 1, gpro_note.value, gpro_note.type.name
-
-        # TODO - extract information from NoteEffect and maybe BeatEffect (not MixTableChange)
+        # Extract note's string and fret
+        string_idx, fret = gpro_note.string, gpro_note.value
 
         # Scale the duration by the duration percentage
         duration *= gpro_note.durationPercent
 
-        # TODO - what does swapAccidentals do?
+        # TODO - extract information from NoteEffect and maybe BeatEffect (not MixTableChange)
 
         # Create a note object to keep track of the GuitarPro note
-        # TODO - specify time in ticks instead of seconds
+        # TODO - specify time in ticks instead of seconds (or both...?)
         note = Note(fret, onset, duration, string_idx)
 
-        # Get the key corresponding to the string index
-        key = self.string_keys[string_idx]
-
-        if type == NOTE_TYPE_ENUM_NORMAL:
+        if gpro_note.type == NoteType.normal:
             # Add the new note to the dictionary under the respective string
-            self.gpro_notes_by_string[key].append(note)
-        elif type == NOTE_TYPE_ENUM_TIE:
+            self.gpro_notes[string_idx].append(note)
+        elif gpro_note.type == NoteType.tie:
             # Obtain the last note that occurred on the string
-            last_gpro_note = self.gpro_notes_by_string[key][-1] \
-                             if len(self.gpro_notes_by_string[key]) else None
+            last_gpro_note = self.gpro_notes[string_idx][-1] \
+                             if len(self.gpro_notes[string_idx]) else None
             # Determine if the last note should be extended
             if last_gpro_note is not None:
                 # Determine how much to extend the note
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
                 last_gpro_note.extend_note(new_duration)
+        elif gpro_note.type == NoteType.dead:
+            # TODO - dead note
+            pass
         else:
+            # TODO - rest - don't track note
             pass
 
     def write_jams(self):
@@ -200,17 +187,16 @@ class NoteTracker(object):
         # Create a new JAMS object
         jam = jams.JAMS()
 
-        # TODO - write available metadata here
+        # TODO - write available metadata here?
 
         # Loop through all tracked strings
-        # TODO - fix tuning so that only string idx and base tuning is stored
-        for s in self.string_keys:
+        for s, p in zip(self.string_idcs, self.open_tuning):
             # Create a new annotation for guitar tablature
             string_data = jams.Annotation(namespace='note_tab', time=0, duration=0)
-            # Set the source (string) for the annotations
-            string_data.annotation_metadata = jams.AnnotationMetadata(data_source=s)
+            # Set the source (string) and tuning for the string
+            string_data.sandbox.update(string_index=s, open_tuning=p)
             # Loop through all notes
-            for n in self.gpro_notes_by_string[s]:
+            for n in self.gpro_notes[s]:
                 # Dictionary of tablature note attributes
                 value = {
                     'fret' : n.fret,
@@ -227,14 +213,10 @@ class NoteTracker(object):
         # Add the total duration to the top-level file metadata
         jam.file_metadata.duration = 0  # TODO
 
-        # Add the total duration to each string's metadata
-        for string_data in jam.annotations:
-            string_data.duration = 0  # TODO
-
         return jam
 
 
-def validate_gpro_track(gpro_track, tuning=None):
+def validate_gpro_track(gpro_track):
     """
     Helper function to determine which GuitarPro tracks are valid for our purposes.
 
@@ -242,8 +224,6 @@ def validate_gpro_track(gpro_track, tuning=None):
     ----------
     gpro_track : Track object (PyGuitarPro)
       GuitarPro track to validate
-    tuning : list or ndarray
-        MIDI pitch of each open-string
 
     Returns
     ----------
@@ -296,10 +276,8 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     # Make a copy of the track, so that it can be modified without consequence
     gpro_track = deepcopy(gpro_track)
 
-    # Obtain the tuning of the strings of the track
-    tuning = [string.value for string in gpro_track.strings]
     # Initialize a tracker to keep track of GuitarPro notes
-    note_tracker = NoteTracker(default_tempo, tuning)
+    note_tracker = NoteTracker(default_tempo, gpro_track.strings)
 
     # Keep track of the amount of time processed so far
     current_time = None
