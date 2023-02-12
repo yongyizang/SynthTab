@@ -121,16 +121,22 @@ class Note(object):
             self.setAttrEffect(vibrato=True)
 
         if len(effect.slides):
-            pass
+            self.setAttrEffect(slide=[s.name for s in effect.slides])
 
         if effect.isBend:
-            pass
+            print()
 
         if effect.isGrace:
-            pass
+            self.setAttrEffect(grace={'fret' : effect.grace.fret,
+                                      'transition' : effect.grace.transition.name,
+                                      'velocity' : effect.grace.velocity,
+                                      # TODO - what is durationTime?
+                                      'duration' : effect.grace.duration,
+                                      'on_beat' : effect.grace.isOnBeat,
+                                      'dead' : effect.grace.isDead})
 
         if effect.isHarmonic:
-            pass
+            print()
 
         #if effect.isTremoloPicking:
         #    # TODO - need to break apart duration
