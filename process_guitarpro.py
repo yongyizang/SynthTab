@@ -142,8 +142,6 @@ def write_jams_guitarpro(gpro_path, jams_dir):
 if __name__ == '__main__':
     # Construct a path to the base directory
     gpro_dir = 'path/to/DadaGP'
-    # TODO - delete following
-    #gpro_dir = '/home/rockstar/Desktop/Datasets/DadaGP'
 
     # Remove existing JAMS files
     clean_jams(gpro_dir)

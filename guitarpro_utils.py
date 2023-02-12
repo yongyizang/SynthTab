@@ -99,7 +99,7 @@ class Note(object):
           Technique and effect information for a note
         """
 
-        # TODO - complete this function and add some helpful hints
+        # TODO - Add helpful comments and hints to this function
 
         # Encode boolean attributes...
         if effect.accentuatedNote:
@@ -124,6 +124,7 @@ class Note(object):
             self.setAttrEffect(slide=[s.name for s in effect.slides])
 
         if effect.isBend:
+            # TODO - add support for bends
             print()
 
         if effect.isGrace:
@@ -136,15 +137,39 @@ class Note(object):
                                       'dead' : effect.grace.isDead})
 
         if effect.isHarmonic:
-            print()
+            if effect.harmonic.type == 1:
+                harmonic = {'type' : 'natural'}
+            elif effect.harmonic.type == 2:
+                harmonic = {'type' : 'artificial',
+                            'pitch' : {'just' : effect.harmonic.pitch.just,
+                                       'accidental' : effect.harmonic.pitch.accidental,
+                                       'value' : effect.harmonic.pitch.value,
+                                       'intonation' : effect.harmonic.pitch.intonation},
+                            'octave' : effect.harmonic.octave.name}
+            elif effect.harmonic.type == 3:
+                harmonic = {'type' : 'tapped',
+                            'fret' : effect.harmonic.fret}
+            elif effect.harmonic.type == 4:
+                harmonic = {'type' : 'pinch'}
+            else:
+                harmonic = {'type' : 'semi'}
 
-        #if effect.isTremoloPicking:
-        #    # TODO - need to break apart duration
-        #    self.setAttrEffect(tremolo=effect.tremoloPicking.duration)
+            self.setAttrEffect(harmonic=harmonic)
 
-        #if effect.isTrill:
-        #    # TODO - need to break apart duration
-        #    self.setAttrEffect(trill={'fret' : effect.trill.fret, 'duration' : effect.trill.duration})
+        # TODO - is anything else important for Duration?
+
+        if effect.isTremoloPicking:
+            self.setAttrEffect(tremolo={'value' : effect.tremoloPicking.duration.value,
+                                        'dotted' : effect.tremoloPicking.duration.isDotted,
+                                        'tuplet' : {'enters' : effect.tremoloPicking.duration.tuplet.enters,
+                                                    'times' : effect.tremoloPicking.duration.tuplet.times}})
+
+        if effect.isTrill:
+            self.setAttrEffect(trill={'fret' : effect.trill.fret,
+                                      'duration' : {'value' : effect.tremoloPicking.duration.value,
+                                                    'dotted' : effect.tremoloPicking.duration.isDotted,
+                                                    'tuplet' : {'enters' : effect.tremoloPicking.duration.tuplet.enters,
+                                                                'times' : effect.tremoloPicking.duration.tuplet.times}}})
 
 
 class NoteTracker(object):
@@ -416,7 +441,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
             repeat_measure = current_measure
 
         # Keep track of the amount of ticks processed within the measure
-        measure_ticks = [0] * len(measure.voices)
+        measure_ticks = [0.] * len(measure.voices)
 
         # Loop through voices within the measure
         for v, voice in enumerate(measure.voices):
@@ -424,7 +449,10 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
             for beat in voice.beats:
                 if total_ticks is None:
                     # Set the current tick to the measure start
-                    total_ticks = measure.start
+                    total_ticks = float(measure.start)
+
+                # Compute the current tick within the measure
+                current_tick = total_ticks + measure_ticks[v]
 
                 # Check if there are any tempo changes
                 if beat.effect.mixTableChange is not None:
@@ -434,15 +462,15 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                         # Update the tempo of the note tracker
                         note_tracker.set_current_tempo(new_tempo)
                         # Add the tempo change to the tracked list
-                        tempo_changes.append((total_ticks + measure_ticks[v], new_tempo))
+                        tempo_changes.append((current_tick, new_tempo))
 
                 # Obtain the note duration in ticks
-                duration_ticks = beat.duration.time
+                duration_ticks = float(beat.duration.time)
 
                 # Loop through the notes in the beat division
                 for note in beat.notes:
                     # Add the note to the tracker
-                    note_tracker.track_note(note, total_ticks + measure_ticks[v], duration_ticks)
+                    note_tracker.track_note(note, current_tick, duration_ticks)
 
                 # Accumulate the ticks of the beat
                 measure_ticks[v] += duration_ticks
