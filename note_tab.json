@@ -3,7 +3,8 @@
         "dense": false,
         "value": { "type": "object",
             "properties": {
-                "fret": { "type": "number" }
+                "fret": { "type": "integer", "minimum": 0 },
+                "velocity": { "type": "number", "minimum": 0, "maximum": 127 }
             },
             "required": ["fret"]
         },

@@ -38,7 +38,7 @@ class Note(object):
     Simple class representing a guitar note for use during GuitarPro file processing.
     """
 
-    def __init__(self, fret, onset, duration, string):
+    def __init__(self, fret, onset, velocity, duration, string):
         """
         Initialize a guitar note.
 
@@ -48,6 +48,8 @@ class Note(object):
           Fret the note was played on
         onset : int
           Time of the beginning of the note in ticks
+        velocity : int
+          Velocity of the note
         duration : int
           Amount of ticks after the onset where the note is still active
         string : int (Optional)
@@ -56,6 +58,7 @@ class Note(object):
 
         self.fret = fret
         self.onset = onset
+        self.velocity = velocity
         self.duration = duration
         self.string = string
 
@@ -96,8 +99,46 @@ class Note(object):
           Technique and effect information for a note
         """
 
-        # TODO - conditional here
-        pass
+        # TODO - complete this function and add some helpful hints
+
+        # Encode boolean attributes...
+        if effect.accentuatedNote:
+            self.setAttrEffect(accentuated_note=True)
+        if effect.ghostNote:
+            self.setAttrEffect(ghost_note=True)
+        if effect.hammer:
+            # Next note will be a hammer-on or pull-off
+            self.setAttrEffect(hammer=True)
+        if effect.heavyAccentuatedNote:
+            self.setAttrEffect(heavy_accentuated_note=True)
+        if effect.letRing:
+            self.setAttrEffect(let_ring=True)
+        if effect.palmMute:
+            self.setAttrEffect(palm_mute=True)
+        if effect.staccato:
+            self.setAttrEffect(staccato=True)
+        if effect.vibrato:
+            self.setAttrEffect(vibrato=True)
+
+        if len(effect.slides):
+            pass
+
+        if effect.isBend:
+            pass
+
+        if effect.isGrace:
+            pass
+
+        if effect.isHarmonic:
+            pass
+
+        #if effect.isTremoloPicking:
+        #    # TODO - need to break apart duration
+        #    self.setAttrEffect(tremolo=effect.tremoloPicking.duration)
+
+        #if effect.isTrill:
+        #    # TODO - need to break apart duration
+        #    self.setAttrEffect(trill={'fret' : effect.trill.fret, 'duration' : effect.trill.duration})
 
 
 class NoteTracker(object):
@@ -176,14 +217,14 @@ class NoteTracker(object):
             # Nothing to do for rests
             return
 
-        # Extract the string and fret of the note
-        string_idx, fret = gpro_note.string, gpro_note.value
+        # Extract the string, fret, and velocity of the note
+        string_idx, fret, velocity = gpro_note.string, gpro_note.value, gpro_note.velocity
 
         # Scale the duration by the duration percentage
         duration = round(duration * gpro_note.durationPercent)
 
         # Create a note object to keep track of the GuitarPro note
-        note = Note(fret, onset, duration, string_idx)
+        note = Note(fret, onset, velocity, duration, string_idx)
 
         # Parse the relevant techniques and effects
         note.parseNoteEffect(gpro_note.effect)
@@ -230,7 +271,7 @@ class NoteTracker(object):
             # Loop through all notes
             for n in self.gpro_notes[s]:
                 # Dictionary of tablature note attributes
-                value = {'fret' : n.fret}
+                value = {'fret' : n.fret, 'velocity' : n.velocity}
                 # Add any note effects to the dictionary
                 value.update(n.effects)
                 # Add an annotation for the note
