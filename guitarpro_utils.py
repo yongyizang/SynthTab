@@ -293,7 +293,6 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     note_tracker = NoteTracker(default_tempo, gpro_track.strings)
 
     # Keep track of cumulative ticks
-    total_time = None
     total_ticks = None
 
     # Initialize a dictionary for tempo changes
@@ -335,19 +334,16 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
             # Jump back to this measure at the next repeat close
             repeat_measure = current_measure
 
-        # Keep track of the amount of time processed within the measure
+        # Keep track of the amount of ticks processed within the measure
         measure_ticks = [0] * len(measure.voices)
-        measure_time = [0] * len(measure.voices)
 
         # Loop through voices within the measure
         for v, voice in enumerate(measure.voices):
             # Loop through the beat divisions of the measure
             for beat in voice.beats:
-                if total_ticks is None or total_time is None:
-                    # Set the current time to the start of the measure
+                if total_ticks is None:
+                    # Set the current tick to the measure start
                     total_ticks = measure.start
-                    total_time = ticks_to_seconds(measure.start,
-                                                  note_tracker.get_current_tempo())
 
                 # Check if there are any tempo changes
                 if beat.effect.mixTableChange is not None:
@@ -359,31 +355,25 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                         # Add the tempo change to the tracked list
                         tempo_changes.append((total_ticks + measure_ticks[v], new_tempo))
 
-                # Obtain the note duration in ticks and convert from ticks to seconds
+                # Obtain the note duration in ticks
                 duration_ticks = beat.duration.time
-                duration_seconds = ticks_to_seconds(duration_ticks,
-                                                    note_tracker.get_current_tempo())
 
                 # Loop through the notes in the beat division
                 for note in beat.notes:
                     # Add the note to the tracker
                     note_tracker.track_note(note, total_ticks + measure_ticks[v], duration_ticks)
 
-                # Accumulate the time of the beat
+                # Accumulate the ticks of the beat
                 measure_ticks[v] += duration_ticks
-                measure_time[v] += duration_seconds
 
-        # Add the measure time to the current accumulated time
+        # Add the measure ticks to the total ticks
         total_ticks += measure_ticks[0]
-        total_time += measure_time[0]
         # Check if all ticks were counted
         if measure_ticks[0] != measure.length:
             # Compute the number of ticks missing
             remaining_ticks = measure.length - measure_ticks[0]
-            # Add the time for the missing ticks
+            # Add the remaining measure ticks
             total_ticks += remaining_ticks
-            total_time += ticks_to_seconds(remaining_ticks,
-                                           note_tracker.get_current_tempo())
 
         if measure.repeatClose > 0:
             # Set the (alternate repeat) jump to the next measure
