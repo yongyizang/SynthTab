@@ -1,10 +1,14 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
-from guitarpro_utils import validate_gpro_track, parse_notes_gpro_track, VALID_INSTRUMENTS
+from guitarpro_utils import validate_gpro_track, \
+                            parse_notes_gpro_track, \
+                            VALID_INSTRUMENTS, \
+                            ticks_to_seconds
 
 # Regular imports
 import guitarpro
+import jams
 import os
 
 
@@ -97,13 +101,33 @@ def write_jams_guitarpro(gpro_path, jams_dir):
             os.makedirs(jams_dir, exist_ok=True)
 
             # Extract the notes and duration of the track, given a global tempo
-            note_tracker, duration = parse_notes_gpro_track(gpro_track, gpro_data.tempo)
+            note_tracker, tempo_changes = parse_notes_gpro_track(gpro_track, gpro_data.tempo)
 
             # Write the note predictions to a JAMS object
             jam = note_tracker.write_jams()
 
+            # Create a new annotation for tempo changes
+            tempo_data = jams.Annotation(namespace='tempo')
+
+            # Keep track of the cumulative duration of each tempo
+            total_duration = 0
+
+            # Loop through tempo changes
+            for i in range(1, len(tempo_changes)):
+                # Extract the tempo change information
+                tick, tempo = tempo_changes[i - 1]
+                # Compute the amount of ticks for which tempo is valid
+                duration = tempo_changes[i][0] - tempo_changes[i - 1][0]
+                # Add an entry for the tempo change to the JAMS data
+                tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
+                # Accumulate the duration of the tempo
+                total_duration += duration
+
+            # Add the annotation to the JAMS object
+            jam.annotations.append(tempo_data)
+
             # Add the total duration to the top-level file meta-data
-            jam.file_metadata.duration = duration
+            jam.file_metadata.duration = total_duration
 
             # Write track meta-data to the JAMS object
             jam.sandbox.update(instrument=gpro_track.channel.instrument,

@@ -124,7 +124,7 @@ class NoteTracker(object):
 
         Returns
         ----------
-        tempo : int or float (Optional)
+        tempo : int or float
           Current tracked tempo
         """
 
@@ -180,6 +180,11 @@ class NoteTracker(object):
     def write_jams(self):
         """
         Write the tracked note data to a JAMS file.
+
+        Returns
+        ----------
+        jam : JAMS object
+          JAMS file data
         """
 
         # Create a new JAMS object
@@ -188,7 +193,7 @@ class NoteTracker(object):
         # Loop through all tracked strings
         for s, p in zip(self.string_idcs, self.open_tuning):
             # Create a new annotation for guitar tablature
-            string_data = jams.Annotation(namespace='note_tab', time=0, duration=0)
+            string_data = jams.Annotation(namespace='note_tab')
             # Set the source (string) and tuning for the string
             string_data.sandbox.update(string_index=s, open_tuning=p)
             # Loop through all notes
@@ -200,7 +205,7 @@ class NoteTracker(object):
                 }
                 # Add an annotation for the note
                 string_data.append(time=n.onset, duration=n.duration, value=value)
-            # Add the annotation to the JAM
+            # Add the annotation to the JAMS object
             jam.annotations.append(string_data)
 
         return jam
@@ -277,8 +282,8 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     ----------
     note_tracker : NoteTracker
       Tracking object to maintain notes and their attributes
-    total_time : float
-      Total duration of the track in seconds
+    tempo_changes : list of (tick, tempo) tuples
+      Collection of tempo changes along with the tick where they occurred
     """
 
     # Make a copy of the track, so that it can be modified without consequence
@@ -287,9 +292,12 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     # Initialize a tracker to keep track of GuitarPro notes
     note_tracker = NoteTracker(default_tempo, gpro_track.strings)
 
-    # Keep track of the amount of time processed so far
-    total_ticks = None
+    # Keep track of cumulative ticks
     total_time = None
+    total_ticks = None
+
+    # Initialize a dictionary for tempo changes
+    tempo_changes = [(0, default_tempo)]
 
     # Determine how many measures are in the track
     total_num_measures = len(gpro_track.measures)
@@ -348,7 +356,8 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                         new_tempo = beat.effect.mixTableChange.tempo.value
                         # Update the tempo of the note tracker
                         note_tracker.set_current_tempo(new_tempo)
-                        # TODO - return dict of {tick : new_tempo}
+                        # Add the tempo change to the tracked list
+                        tempo_changes.append((total_ticks + measure_ticks[v], new_tempo))
 
                 # Obtain the note duration in ticks and convert from ticks to seconds
                 duration_ticks = beat.duration.time
@@ -392,4 +401,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
             # Increment the measure pointer
             current_measure += 1
 
-    return note_tracker, total_time
+    # Add the final tick so duration can be inferred
+    tempo_changes.append((total_ticks, -1))
+
+    return note_tracker, tempo_changes
