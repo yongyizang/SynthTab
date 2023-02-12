@@ -125,7 +125,7 @@ class Note(object):
 
         if effect.isBend:
             # TODO - add support for bends
-            print()
+            print('', end='')
 
         if effect.isGrace:
             self.setAttrEffect(grace={'fret' : effect.grace.fret,
@@ -140,15 +140,18 @@ class Note(object):
             if effect.harmonic.type == 1:
                 harmonic = {'type' : 'natural'}
             elif effect.harmonic.type == 2:
-                harmonic = {'type' : 'artificial',
-                            'pitch' : {'just' : effect.harmonic.pitch.just,
-                                       'accidental' : effect.harmonic.pitch.accidental,
-                                       'value' : effect.harmonic.pitch.value,
-                                       'intonation' : effect.harmonic.pitch.intonation},
-                            'octave' : effect.harmonic.octave.name}
+                harmonic = {'type' : 'artificial'}
+                if effect.harmonic.pitch is not None:
+                    harmonic.update({'pitch' : {'just' : effect.harmonic.pitch.just,
+                                                'accidental' : effect.harmonic.pitch.accidental,
+                                                'value' : effect.harmonic.pitch.value,
+                                                'intonation' : effect.harmonic.pitch.intonation}})
+                if effect.harmonic.octave is not None:
+                    harmonic.update({'octave' : effect.harmonic.octave.name})
             elif effect.harmonic.type == 3:
-                harmonic = {'type' : 'tapped',
-                            'fret' : effect.harmonic.fret}
+                harmonic = {'type' : 'tapped'}
+                if effect.harmonic.fret is not None:
+                    harmonic.update({'fret' : effect.harmonic.fret})
             elif effect.harmonic.type == 4:
                 harmonic = {'type' : 'pinch'}
             else:
@@ -166,10 +169,10 @@ class Note(object):
 
         if effect.isTrill:
             self.setAttrEffect(trill={'fret' : effect.trill.fret,
-                                      'duration' : {'value' : effect.tremoloPicking.duration.value,
-                                                    'dotted' : effect.tremoloPicking.duration.isDotted,
-                                                    'tuplet' : {'enters' : effect.tremoloPicking.duration.tuplet.enters,
-                                                                'times' : effect.tremoloPicking.duration.tuplet.times}}})
+                                      'duration' : {'value' : effect.trill.duration.value,
+                                                    'dotted' : effect.trill.duration.isDotted,
+                                                    'tuplet' : {'enters' : effect.trill.duration.tuplet.enters,
+                                                                'times' : effect.trill.duration.tuplet.times}}})
 
 
 class NoteTracker(object):
