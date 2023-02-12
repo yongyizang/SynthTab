@@ -3,8 +3,7 @@
 # My imports
 from guitarpro_utils import validate_gpro_track, \
                             parse_notes_gpro_track, \
-                            VALID_INSTRUMENTS, \
-                            ticks_to_seconds
+                            VALID_INSTRUMENTS
 
 # Regular imports
 import guitarpro
@@ -143,6 +142,7 @@ def write_jams_guitarpro(gpro_path, jams_dir):
 if __name__ == '__main__':
     # Construct a path to the base directory
     #gpro_dir = 'path/to/DadaGP'
+    # TODO - change this back
     gpro_dir = '/home/rockstar/Desktop/Datasets/DadaGP'
 
     # Remove existing JAMS files

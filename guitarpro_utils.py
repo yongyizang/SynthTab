@@ -59,7 +59,7 @@ class Note(object):
         self.duration = duration
         self.string = string
 
-        # TODO - specify techniques/effects somehow
+        self.effects = dict()
 
     def set_duration(self, new_duration):
         """
@@ -72,6 +72,32 @@ class Note(object):
         """
 
         self.duration = new_duration
+
+    def setAttrEffect(self, **kwargs):
+        """
+        Insert additional information to tracked note techniques and effects.
+
+        Parameters
+        ----------
+        kwargs : dict
+          Attributes to add
+        """
+
+        # Add specified attributes to effects
+        self.effects.update(**kwargs)
+
+    def parseNoteEffect(self, effect):
+        """
+        Parse effect attributes relevant for our purposes.
+
+        Parameters
+        ----------
+        effect : guitarpro.NoteEffect
+          Technique and effect information for a note
+        """
+
+        # TODO - conditional here
+        pass
 
 
 class NoteTracker(object):
@@ -146,21 +172,29 @@ class NoteTracker(object):
           Amount of ticks the note is active
         """
 
-        # Extract note's string and fret
+        if gpro_note.type == NoteType.rest:
+            # Nothing to do for rests
+            return
+
+        # Extract the string and fret of the note
         string_idx, fret = gpro_note.string, gpro_note.value
 
         # Scale the duration by the duration percentage
         duration = round(duration * gpro_note.durationPercent)
 
-        # TODO - extract information from NoteEffect and maybe BeatEffect (not MixTableChange)
-
         # Create a note object to keep track of the GuitarPro note
         note = Note(fret, onset, duration, string_idx)
 
-        if gpro_note.type == NoteType.normal:
-            # Add the new note to the dictionary under the respective string
-            self.gpro_notes[string_idx].append(note)
-        elif gpro_note.type == NoteType.tie:
+        # Parse the relevant techniques and effects
+        note.parseNoteEffect(gpro_note.effect)
+
+        if gpro_note.type == NoteType.dead:
+            # Add as a technique attribute
+            note.setAttrEffect(dead_note=True)
+
+        # TODO - handle BeatEffect (not MixTableChange)
+
+        if gpro_note.type == NoteType.tie:
             # Obtain the last note that occurred on the string
             last_gpro_note = self.gpro_notes[string_idx][-1] \
                              if len(self.gpro_notes[string_idx]) else None
@@ -170,12 +204,9 @@ class NoteTracker(object):
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
                 last_gpro_note.set_duration(new_duration)
-        elif gpro_note.type == NoteType.dead:
-            # TODO - dead note
-            pass
         else:
-            # TODO - rest - don't track note
-            pass
+            # Add the new note to the dictionary under the respective string
+            self.gpro_notes[string_idx].append(note)
 
     def write_jams(self):
         """
@@ -199,10 +230,9 @@ class NoteTracker(object):
             # Loop through all notes
             for n in self.gpro_notes[s]:
                 # Dictionary of tablature note attributes
-                value = {
-                    'fret' : n.fret,
-                    # TODO - additional fields here
-                }
+                value = {'fret' : n.fret}
+                # Add any note effects to the dictionary
+                value.update(n.effects)
                 # Add an annotation for the note
                 string_data.append(time=n.onset, duration=n.duration, value=value)
             # Add the annotation to the JAMS object
@@ -257,6 +287,10 @@ def validate_gpro_track(gpro_track):
 
     # Determine if this is a valid bass track
     is_bass = (32 <= gpro_track.channel.instrument <= 39)
+
+    if (38 <= gpro_track.channel.instrument <= 39):
+        # TODO - remove this
+        print('SYNTH BASS')
 
     # Determine if this is a valid banjo track
     is_banjo = gpro_track.isBanjoTrack or gpro_track.channel.instrument == 105
