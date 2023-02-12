@@ -3,7 +3,6 @@
 from guitarpro import NoteType, Duration
 from copy import deepcopy
 
-import numpy as np
 import jams
 
 
@@ -39,7 +38,7 @@ class Note(object):
     Simple class representing a guitar note for use during GuitarPro file processing.
     """
 
-    def __init__(self, fret, onset, duration, string=None):
+    def __init__(self, fret, onset, duration, string):
         """
         Initialize a guitar note.
 
@@ -47,12 +46,12 @@ class Note(object):
         ----------
         fret : int
           Fret the note was played on
-        onset : float
-          Time of the beginning of the note in seconds
-        duration : float
-          Amount of time after the onset where the note is still active
+        onset : int
+          Time of the beginning of the note in ticks
+        duration : int
+          Amount of ticks after the onset where the note is still active
         string : int (Optional)
-          Numerical indicator for the string the note was played on
+          Index of the string the note was played on
         """
 
         self.fret = fret
@@ -62,17 +61,17 @@ class Note(object):
 
         # TODO - specify techniques/effects somehow
 
-    def extend_note(self, duration):
+    def set_duration(self, new_duration):
         """
-        Extend the note by a specified amount of time.
+        Update the duration of the note in ticks.
 
         Parameters
         ----------
-        duration : float
-          Amount of time to extend the note
+        duration : int
+          Amount of ticks the note is active
         """
 
-        self.duration = duration
+        self.duration = new_duration
 
 
 class NoteTracker(object):
@@ -141,22 +140,21 @@ class NoteTracker(object):
         ----------
         gpro_note : guitarpro.Note
           GuitarPro note information
-        onset : float
-          Time the note begins in seconds
-        duration : float
-          Amount of time the note is active
+        onset : int
+          Time the note begins in ticks
+        duration : int
+          Amount of ticks the note is active
         """
 
         # Extract note's string and fret
         string_idx, fret = gpro_note.string, gpro_note.value
 
         # Scale the duration by the duration percentage
-        duration *= gpro_note.durationPercent
+        duration = round(duration * gpro_note.durationPercent)
 
         # TODO - extract information from NoteEffect and maybe BeatEffect (not MixTableChange)
 
         # Create a note object to keep track of the GuitarPro note
-        # TODO - specify time in ticks instead of seconds (or both...?)
         note = Note(fret, onset, duration, string_idx)
 
         if gpro_note.type == NoteType.normal:
@@ -171,7 +169,7 @@ class NoteTracker(object):
                 # Determine how much to extend the note
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
-                last_gpro_note.extend_note(new_duration)
+                last_gpro_note.set_duration(new_duration)
         elif gpro_note.type == NoteType.dead:
             # TODO - dead note
             pass
@@ -198,10 +196,7 @@ class NoteTracker(object):
                 # Dictionary of tablature note attributes
                 value = {
                     'fret' : n.fret,
-                    'ex_bool' : False,
-                    'ex_str' : 'example'
-                    # TODO - no warnings are thrown for key not specified in schema
-                    # TODO - no warnings are thrown when key specified in schema omitted
+                    # TODO - additional fields here
                 }
                 # Add an annotation for the note
                 string_data.append(time=n.onset, duration=n.duration, value=value)
@@ -209,6 +204,27 @@ class NoteTracker(object):
             jam.annotations.append(string_data)
 
         return jam
+
+
+VALID_INSTRUMENTS = {
+    24 : 'Acoustic Nylon Guitar',
+    25 : 'Acoustic Steel Guitar',
+    26 : 'Electric Jazz Guitar',
+    27 : 'Electric Clean Guitar',
+    28 : 'Electric Muted Guitar',
+    29 : 'Overdriven Guitar',
+    30 : 'Distortion Guitar',
+    31 : 'Guitar Harmonics',
+    32 : 'Acoustic Bass',
+    33 : 'Fingered Electric Bass',
+    34 : 'Plucked Electric Bass',
+    35 : 'Fretless Bass',
+    36 : 'Slap Bass 1',
+    37 : 'Slap Bass 2',
+    38 : 'Synth Bass 1',
+    39 : 'Synth Bass 2',
+    105 : 'Banjo'
+}
 
 
 def validate_gpro_track(gpro_track):
@@ -235,15 +251,10 @@ def validate_gpro_track(gpro_track):
     # TODO - support guitar fret noise (120)?
 
     # Determine if this is a valid bass track
-    # TODO - do we want to support synth bass (38-39)
     is_bass = (32 <= gpro_track.channel.instrument <= 39)
 
     # Determine if this is a valid banjo track
     is_banjo = gpro_track.isBanjoTrack or gpro_track.channel.instrument == 105
-
-    if is_banjo:
-        # TODO - verify instrument code matches
-        print()
 
     # Determine if the track is valid
     valid = not is_percussive and (is_guitar or is_bass or is_banjo)
@@ -253,7 +264,7 @@ def validate_gpro_track(gpro_track):
 
 def parse_notes_gpro_track(gpro_track, default_tempo):
     """
-    Track MIDI notes spread across strings within a GuitarPro track.
+    Track duration and MIDI notes spread across strings within a GuitarPro track.
 
     Parameters
     ----------
@@ -277,6 +288,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
     note_tracker = NoteTracker(default_tempo, gpro_track.strings)
 
     # Keep track of the amount of time processed so far
+    total_ticks = None
     total_time = None
 
     # Determine how many measures are in the track
@@ -300,8 +312,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         if measure.header.repeatAlternative != 0:
             # The 'repeatAlternative' attribute seems to be encoded as binary a binary vector,
             # where the integers k in the measure header represent a 1 in the kth digit
-            # TODO - remove numpy dependency (sum() should work)
-            alt_repeat_num = np.sum([2 ** k for k in range(repeat_count)])
+            alt_repeat_num = sum([2 ** k for k in range(repeat_count)])
             # Check if it is time to jump past the repeat close
             if alt_repeat_num >= measure.header.repeatAlternative:
                 # Reset the external repeat counter
@@ -324,9 +335,11 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         for v, voice in enumerate(measure.voices):
             # Loop through the beat divisions of the measure
             for beat in voice.beats:
-                if total_time is None:
+                if total_ticks is None or total_time is None:
                     # Set the current time to the start of the measure
-                    total_time = ticks_to_seconds(measure.start, note_tracker.get_current_tempo())
+                    total_ticks = measure.start
+                    total_time = ticks_to_seconds(measure.start,
+                                                  note_tracker.get_current_tempo())
 
                 # Check if there are any tempo changes
                 if beat.effect.mixTableChange is not None:
@@ -335,27 +348,33 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
                         new_tempo = beat.effect.mixTableChange.tempo.value
                         # Update the tempo of the note tracker
                         note_tracker.set_current_tempo(new_tempo)
+                        # TODO - return dict of {tick : new_tempo}
 
-                # Convert the note duration from ticks to seconds
-                duration_seconds = ticks_to_seconds(beat.duration.time, note_tracker.get_current_tempo())
+                # Obtain the note duration in ticks and convert from ticks to seconds
+                duration_ticks = beat.duration.time
+                duration_seconds = ticks_to_seconds(duration_ticks,
+                                                    note_tracker.get_current_tempo())
 
                 # Loop through the notes in the beat division
                 for note in beat.notes:
                     # Add the note to the tracker
-                    note_tracker.track_note(note, total_time + measure_time[v], duration_seconds)
+                    note_tracker.track_note(note, total_ticks + measure_ticks[v], duration_ticks)
 
                 # Accumulate the time of the beat
-                measure_ticks[v] += beat.duration.time
+                measure_ticks[v] += duration_ticks
                 measure_time[v] += duration_seconds
 
         # Add the measure time to the current accumulated time
+        total_ticks += measure_ticks[0]
         total_time += measure_time[0]
         # Check if all ticks were counted
         if measure_ticks[0] != measure.length:
             # Compute the number of ticks missing
             remaining_ticks = measure.length - measure_ticks[0]
             # Add the time for the missing ticks
-            total_time += ticks_to_seconds(remaining_ticks, note_tracker.get_current_tempo())
+            total_ticks += remaining_ticks
+            total_time += ticks_to_seconds(remaining_ticks,
+                                           note_tracker.get_current_tempo())
 
         if measure.repeatClose > 0:
             # Set the (alternate repeat) jump to the next measure
