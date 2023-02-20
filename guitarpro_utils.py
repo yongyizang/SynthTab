@@ -124,15 +124,22 @@ class Note(object):
             self.setAttrEffect(slide=[s.name for s in effect.slides])
 
         if effect.isBend:
-            # TODO - add support for bends
-            print('', end='')
+            # Extract information regarding the bend points
+            positions, heights, vibratos = zip(*[(p.position / 12,
+                                                  6 * p.value / 12,
+                                                  p.vibrato) for p in effect.bend.points])
+
+            self.setAttrEffect(bend={'type' : effect.bend.type.name,
+                                     'points' : {'position' : positions, # % of duration
+                                                 'height' : heights, # semitones
+                                                 'vibrato' : vibratos}})
 
         if effect.isGrace:
             self.setAttrEffect(grace={'fret' : effect.grace.fret,
                                       'transition' : effect.grace.transition.name,
                                       'velocity' : effect.grace.velocity,
-                                      # TODO - what is durationTime?
-                                      'duration' : effect.grace.duration,
+                                      'duration' : effect.grace.durationTime, # TODO - this function appears to
+                                                                              #        have a bug, check back later
                                       'on_beat' : effect.grace.isOnBeat,
                                       'dead' : effect.grace.isDead})
 
@@ -159,20 +166,15 @@ class Note(object):
 
             self.setAttrEffect(harmonic=harmonic)
 
-        # TODO - is anything else important for Duration?
+        # TODO - the following durations might be for whole duration of effect,
+        #        not individual notes - may need to factor in tuplet information
 
         if effect.isTremoloPicking:
-            self.setAttrEffect(tremolo={'value' : effect.tremoloPicking.duration.value,
-                                        'dotted' : effect.tremoloPicking.duration.isDotted,
-                                        'tuplet' : {'enters' : effect.tremoloPicking.duration.tuplet.enters,
-                                                    'times' : effect.tremoloPicking.duration.tuplet.times}})
+            self.setAttrEffect(tremolo={'duration' : effect.tremoloPicking.duration.time})
 
         if effect.isTrill:
             self.setAttrEffect(trill={'fret' : effect.trill.fret,
-                                      'duration' : {'value' : effect.trill.duration.value,
-                                                    'dotted' : effect.trill.duration.isDotted,
-                                                    'tuplet' : {'enters' : effect.trill.duration.tuplet.enters,
-                                                                'times' : effect.trill.duration.tuplet.times}}})
+                                      'duration' : effect.trill.duration.time})
 
 
 class NoteTracker(object):
@@ -275,6 +277,7 @@ class NoteTracker(object):
                              if len(self.gpro_notes[string_idx]) else None
             # Determine if the last note should be extended
             if last_gpro_note is not None:
+                # TODO - carry over any effects from previous note (e.g. bends)
                 # Determine how much to extend the note
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
@@ -358,14 +361,8 @@ def validate_gpro_track(gpro_track):
     # Determine if this is a valid guitar track
     is_guitar = (24 <= gpro_track.channel.instrument <= 31)
 
-    # TODO - support guitar fret noise (120)?
-
     # Determine if this is a valid bass track
     is_bass = (32 <= gpro_track.channel.instrument <= 39)
-
-    if (38 <= gpro_track.channel.instrument <= 39):
-        # TODO - remove this
-        print('SYNTH BASS')
 
     # Determine if this is a valid banjo track
     is_banjo = gpro_track.isBanjoTrack or gpro_track.channel.instrument == 105

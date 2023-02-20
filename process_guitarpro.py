@@ -74,6 +74,9 @@ def get_valid_files(base_dir):
         # Update the tracked paths
         tracked_dirs += [dir_path] * len(valid_files)
 
+    # Order files alphabetically w.r.t. path
+    tracked_dirs, tracked_files = zip(*sorted(zip(tracked_dirs, tracked_files)))
+
     return tracked_files, tracked_dirs
 
 
