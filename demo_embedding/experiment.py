@@ -28,7 +28,7 @@ import torch
 import os
 
 
-DEBUG = 1 # (0 - remote | 1 - desktop)
+DEBUG = 0 # (0 - remote | 1 - desktop)
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     SynthTab.dataset_name(),
@@ -46,7 +46,6 @@ def config():
     hop_length = 512
 
     # Number of consecutive frames within each example fed to the model
-    # TODO - will it break if more frames than available are requested?
     num_frames = 1000
 
     # Number of training iterations to conduct
