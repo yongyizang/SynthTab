@@ -13,6 +13,3 @@ SynthTab is released as both `train` and `validation` data. Training portion con
 ```
 
 Validation portion is similar to training portion, except that it contains flac files instead of mp3 files.
-
-## Augmentation
-See augmentation code in `augment.py`, which requires `Pedalboard` to run as its dependency.

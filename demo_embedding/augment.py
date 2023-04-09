@@ -88,6 +88,6 @@ def process_audio_files(audio_files: List[str]):
     return final_mix
 
 # Example usage:
-audio_files = ['/Volumes/ext/taylor/Zwan - The Number Of The Beast - gp4-2 - Acoustic Steel Guitar- midi/taylor_finger_body.flac', '/Volumes/ext/taylor/Zwan - The Number Of The Beast - gp4-2 - Acoustic Steel Guitar- midi/taylor_finger_amb.flac']
-processed_audio = process_audio_files(audio_files)
-sf.write('processed_audio.wav', processed_audio, 44100)
+#audio_files = ['/Volumes/ext/taylor/Zwan - The Number Of The Beast - gp4-2 - Acoustic Steel Guitar- midi/taylor_finger_body.flac', '/Volumes/ext/taylor/Zwan - The Number Of The Beast - gp4-2 - Acoustic Steel Guitar- midi/taylor_finger_amb.flac']
+#processed_audio = process_audio_files(audio_files)
+#sf.write('processed_audio.wav', processed_audio, 44100)
