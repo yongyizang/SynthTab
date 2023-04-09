@@ -55,7 +55,7 @@ def config():
     checkpoints = 50
 
     # Number of samples to gather for a batch
-    batch_size = 30
+    batch_size = 16
 
     # The id of the gpu to use, if available
     gpu_id = 0
@@ -121,11 +121,11 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
         cache_dir = os.path.join('.', 'generated', 'data')
     else:
         # Navigate to the location of the full data
-        synthtab_base_dir = os.path.join('/', 'media', 'finch', 'SSD2' 'SynthTab')
-        gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2' 'GuitarSet')
+        synthtab_base_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'SynthTab')
+        gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'GuitarSet')
 
         # Keep all cached data/features here
-        root_dir = os.path.join('/', 'home', 'frank', 'data')
+        cache_dir = os.path.join('/', 'home', 'frank', 'data')
 
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,

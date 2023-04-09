@@ -1,3 +1,4 @@
+torch
 pyguitarpro
 dawdreamer
 amt-tools
