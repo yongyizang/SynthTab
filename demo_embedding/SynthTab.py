@@ -73,9 +73,8 @@ class SynthTab(TranscriptionDataset):
     Implements a wrapper for SynthTab (TODO - url).
     """
 
-    def __init__(self, base_dir=None, splits=None, hop_length=512, sample_rate=44100, data_proc=None,
-                       profile=None, num_frames=None, audio_norm=-1, split_notes=False, reset_data=False,
-                       store_data=True, save_data=True, save_loc=None, seed=0):
+    def __init__(self, base_dir=None, splits=None, hop_length=512, sample_rate=44100,
+                       data_proc=None, profile=None, num_frames=None, audio_norm=-1, seed=0):
         """
         Initialize an instance of SynthTab.
 
@@ -85,7 +84,7 @@ class SynthTab(TranscriptionDataset):
         """
 
         super().__init__(base_dir, splits, hop_length, sample_rate, data_proc, profile, num_frames,
-                         audio_norm, split_notes, reset_data, store_data, save_data, save_loc, seed)
+                         audio_norm, False, False, False, False, None, seed)
 
     def get_tracks(self, split):
         """

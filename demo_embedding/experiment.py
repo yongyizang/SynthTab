@@ -28,7 +28,7 @@ import torch
 import os
 
 
-DEBUG = 0 # (0 - remote | 1 - desktop)
+DEBUG = 1 # (0 - remote | 1 - desktop)
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     SynthTab.dataset_name(),
@@ -46,13 +46,14 @@ def config():
     hop_length = 512
 
     # Number of consecutive frames within each example fed to the model
-    num_frames = 200
+    # TODO - will it break if more frames than available are requested?
+    num_frames = 1000
 
     # Number of training iterations to conduct
-    max_iterations = int(1E6)
+    max_iterations = 50
 
     # How many equally spaced save/validation checkpoints - 0 to disable
-    checkpoints = max_iterations // 1000
+    checkpoints = 50
 
     # Number of samples to gather for a batch
     batch_size = 30
@@ -120,9 +121,12 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
         # Keep all cached data/features here
         cache_dir = os.path.join('.', 'generated', 'data')
     else:
-        # Use the default base directory paths
+        # Navigate to the location of the full data
         synthtab_base_dir = os.path.join('/', 'media', 'finch', 'SSD2' 'SynthTab')
         gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2' 'GuitarSet')
+
+        # Keep all cached data/features here
+        root_dir = os.path.join('/', 'home', 'frank', 'data')
 
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,
@@ -132,10 +136,6 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                               num_frames=num_frames,
                               data_proc=data_proc,
                               profile=profile,
-                              save_data=False,
-                              store_data=False,
-                              reset_data=reset_data,
-                              save_loc=cache_dir,
                               seed=seed)
 
     # Instantiate the SynthTab validation partition
@@ -146,10 +146,6 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                             num_frames=num_frames,
                             data_proc=data_proc,
                             profile=profile,
-                            save_data=True,
-                            store_data=False,
-                            reset_data=reset_data,
-                            save_loc=cache_dir,
                             seed=seed)
 
     # Create a PyTorch data loader for the dataset
@@ -196,6 +192,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                    iterations=max_iterations,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
+                   single_batch=False,
                    val_set=synthtab_val,
                    estimator=validation_estimator,
                    evaluator=validation_evaluator)
