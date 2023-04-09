@@ -151,9 +151,10 @@ class SynthTab(TranscriptionDataset):
             # Normalize the audio using librosa
             audio = librosa.util.normalize(audio, norm=self.audio_norm)
 
-        if len(audio) < self.seq_length:
-            # Pad the audio to the requested sequence length if necessary
-            audio = np.pad(audio, (0, 1 + self.seq_length - len(audio)))
+        if self.seq_length is not None:
+            if len(audio) < self.seq_length:
+                # Pad the audio to the requested sequence length if necessary
+                audio = np.pad(audio, (0, 1 + self.seq_length - len(audio)))
 
         # We need the frame times for the tablature
         times = self.data_proc.get_times(audio)

@@ -49,7 +49,7 @@ def config():
     num_frames = 1000
 
     # Number of training iterations to conduct
-    max_iterations = 50
+    max_iterations = 5000
 
     # How many equally spaced save/validation checkpoints - 0 to disable
     checkpoints = 50
@@ -184,14 +184,14 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
     model_dir = os.path.join(root_dir, 'models')
 
     # Train the model until stopping criterion is reached
-    # TODO - add stopping criterion
+    # TODO - add forced stopping criterion?
     tabcnn = train(model=tabcnn,
                    train_loader=train_loader,
                    optimizer=optimizer,
                    iterations=max_iterations,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
-                   single_batch=False,
+                   single_batch=True,
                    val_set=synthtab_val,
                    estimator=validation_estimator,
                    evaluator=validation_evaluator)
