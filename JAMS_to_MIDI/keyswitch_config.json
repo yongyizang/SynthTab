@@ -1,0 +1,9 @@
+{
+    "sustain": 24,
+    "harmonic": 25,
+    "palm_mute": 26,
+    "slide_in_out": 27,
+    "legato_slide": 28,
+    "hammer_on_pull_off": 29,
+    "slide_guitar": 30
+}
