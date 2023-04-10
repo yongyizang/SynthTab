@@ -51,7 +51,7 @@ def config():
     num_frames = 1000
 
     # Number of training iterations to conduct
-    max_iterations = 100
+    max_iterations = 10000
 
     # How many equally spaced save/validation checkpoints - 0 to disable
     checkpoints = 100
@@ -127,6 +127,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
         gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'GuitarSet')
 
         # Keep all cached data/features here
+        # TODO - change to 'precomputed'
         cache_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'synthtab_audio_npzs')
 
     # Instantiate the SynthTab training partition
@@ -202,7 +203,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                    iterations=max_iterations,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
-                   single_batch=False,
+                   single_batch=True,
                    val_set=synthtab_val,
                    estimator=validation_estimator,
                    evaluator=validation_evaluator)
