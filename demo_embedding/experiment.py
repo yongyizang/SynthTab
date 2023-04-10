@@ -6,7 +6,7 @@ from amt_tools.models import TabCNN
 from amt_tools.features import CQT
 from SynthTab import SynthTab
 
-from amt_tools.train import train
+from train import train
 from amt_tools.transcribe import ComboEstimator, \
                                  TablatureWrapper, \
                                  StackedMultiPitchCollapser
@@ -68,7 +68,7 @@ def config():
     seed = 0
 
     # Number of threads to use for data loading
-    n_workers = 0 if DEBUG else 8
+    n_workers = 0 if DEBUG else 16
 
     # Create the root directory for the experiment files
     if DEBUG:
@@ -151,6 +151,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
     train_loader = DataLoader(dataset=synthtab_train,
                               batch_size=batch_size,
                               shuffle=True,
+                              pin_memory=True,
                               num_workers=n_workers,
                               drop_last=True)
 

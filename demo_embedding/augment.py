@@ -18,47 +18,58 @@ def generate_random_board() -> Pedalboard:
     board.append(Reverb(room_size=random.random(), damping=random.random(), wet_level=random.random(), dry_level=random.random(), width=random.random(), freeze_mode=random.randint(0,1)))
     return board
 
-def process_audio_signals(audio_signals: List[np.ndarray], sample_rates: List[int], target_sample_rate = 22050, target_audio_length = None):
+def process_audio_signals(audio_signals: List[np.ndarray], target_audio_length = None):
     """ process (assuming different microphone signals) audio signals
 
     Args:
         audio_signals (List[np.ndarray]): an array of audio signals.
-        sample_rates (List[int]): an array of sample rates, corresponding to the audio signals.
-        target_sample_rate (int, optional): target sample rate of returned audio signal. Defaults to 22050.
-        target_audio_length (float, optional): target audio length of returned audio signal, in seconds. Defaults to None. When this is set to None, the returned audio signal will be the length of the longest audio signal in the audio_signals array; otherwise, the returned audio signal will be the target_audio_length.
+        target_audio_length (int, optional): target audio length of returned audio signal, in samples. Defaults to None. When this is set to None, the returned audio signal will be the length of the longest audio signal in the audio_signals array; otherwise, the returned audio signal will be the target_audio_length.
 
     Returns:
         augmented audio signal.
     """
     length_array = []
     for i in range(len(audio_signals)):
-        audio_signals[i] = librosa.resample(audio_signals[i], sample_rates[i], target_sample_rate)
-        audio_signals[i] = 0.99 * audio_signals[i] / np.max(np.abs(audio_signals[i]))
-        length_array.append(len(audio_signals[i]))
+        if np.max(np.abs(audio_signals[i])) > 0:
+            audio_signals[i] = 0.99 * audio_signals[i] / np.max(np.abs(audio_signals[i]))
+            length_array.append(len(audio_signals[i]))
+    if len(length_array) == 0 or np.max(np.abs(length_array)) == 0:
+        return np.zeros(target_audio_length)
     max_audio_length = max(length_array)
 
     output_audio = []
     for i in range(len(audio_signals)):
-       board = generate_random_board()
-       processed_audio = board.process(audio_signals[i], target_sample_rate)
-       processed_audio = np.mean(processed_audio, axis=1)
-       processed_audio = processed_audio * random.random()
-       output_audio.append(processed_audio)
-       
+        # sf.write('processed_audio.wav', audio_signals[i], 22050)
+        # exit()
+        # board = generate_random_board()
+        # audio_signals[i] = np.array(audio_signals[i])
+        # processed_audio = board.process(audio_signals[i], 22050)
+        # print(processed_audio)
+        # sf.write('processed_audio.wav', processed_audio, 22050)
+        # exit()
+        output_audio.append(audio_signals[i] * random.random())
     final_mix = np.zeros(max_audio_length)
+    # print(final_mix.shape)
     for audio in output_audio:
+        # add the audio to the final mix
+        # np.add(final_mix, audio, out=final_mix, casting="unsafe")
         final_mix[:len(audio)] += audio
-    final_mix = final_mix / np.max(np.abs(final_mix))
-    
-    if target_audio_length is not None:
-        target_audio_length = int(target_audio_length * target_sample_rate)
-        if max_audio_length > target_audio_length:
-            final_mix = final_mix[:target_audio_length]
-        else:
-            final_mix = np.pad(final_mix, (0, target_audio_length - max_audio_length), 'constant')
-    else:
-        final_mix = final_mix[:max_audio_length]
-    
+        
+    # if target_audio_length is not None:
+    #     if max_audio_length > target_audio_length:
+    #         final_mix = final_mix[:target_audio_length]
+    #     else:
+    #         final_mix = np.pad(final_mix, (0, target_audio_length - max_audio_length), 'constant')
+    # else:
+    #     final_mix = final_mix[:max_audio_length]
+        
+    # # if NaN then clip as zero
+    # if np.isnan(final_mix).any():
+    #     np.nan_to_num(final_mix, copy=False, nan=0)
+        
+    # # if it clips then normalize
+    # if np.max(np.abs(final_mix)) > 1:
+    #     final_mix = final_mix / np.max(np.abs(final_mix))
     return final_mix
     
 

@@ -3,7 +3,7 @@
 # My imports
 from amt_tools.datasets import TranscriptionDataset
 from augment import process_audio_signals
-
+import time
 import amt_tools.tools as tools
 
 # Regular imports
@@ -11,8 +11,9 @@ import numpy as np
 import guitarpro
 import librosa
 import jams
+import random
 import os
-
+import soundfile as sf
 
 jams.schema.add_namespace(os.path.join('..', 'gp_to_JAMS', 'note_tab.json'))
 
@@ -121,7 +122,8 @@ class SynthTab(TranscriptionDataset):
         """
         TODO
         """
-
+        # start log time
+        # timestart = time.time()
         # Check if a specific sequence length was given
         if seq_length is None:
             if self.seq_length is not None:
@@ -141,7 +143,10 @@ class SynthTab(TranscriptionDataset):
 
         for path in audio_paths:
             # Load the audio using librosa
-            audio_, fs_ = librosa.load(path, sr=self.sample_rate, mono=True)
+            # audio_, fs_ = librosa.load(path, sr=self.sample_rate, mono=True, dtype=np.float32)
+            audio_, fs_ = sf.read(path, dtype='float32')
+            audio_ = librosa.resample(audio_.T, orig_sr=fs_, target_sr=self.sample_rate)
+            audio_ = audio_[0] * (random.random() * 0.8 + 0.2) # temp. Fix later.
             fs += [fs_]
             audio += [audio_]
 
@@ -160,8 +165,15 @@ class SynthTab(TranscriptionDataset):
             # Pad the audio with zeros
             audio = [np.pad(a, (pad_left, pad_total - pad_left)) for a in audio]
 
-        # TODO - describe what is happening here
-        audio = None # TODO - yongyi fix this
+        # audio = process_audio_signals(audio, seq_length)
+        audio = np.mean(audio, axis=0)
+        
+        if self.audio_norm == -1:
+            # Perform root-mean-square normalization
+            audio = tools.rms_norm(audio)
+        else:
+            # Normalize the audio using librosa
+            audio = librosa.util.normalize(audio, norm=self.audio_norm)
 
         # We need the frame times for the tablature
         times = self.data_proc.get_times(audio)
@@ -189,7 +201,7 @@ class SynthTab(TranscriptionDataset):
 
         # Calculate the features and add to the dictionary
         data.update(self.calculate_feats(data))
-
+        # print('Time to load track: ', time.time() - timestart)
         return data
 
     def get_audio_paths(self, track):
