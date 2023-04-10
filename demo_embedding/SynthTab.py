@@ -139,13 +139,13 @@ class SynthTab(TranscriptionDataset):
         # Add the track ID to the dictionary
         data[tools.KEY_TRACK] = track
 
-        # Determine the expected path to the track's data
-        gt_path = self.get_gt_dir(track)
+        # Determine the expected path to the track's audio
+        audio_path = self.get_feats_dir(track)
 
         # Check if an entry for the data exists
-        if self.save_data and os.path.exists(gt_path):
+        if self.save_data and os.path.exists(audio_path):
             # Load and unpack the data
-            audio = torch.load(gt_path)
+            audio = torch.load(audio_path)
         else:
             # Construct the paths to the track's audio
             audio_paths = self.get_audio_paths(track)
@@ -163,8 +163,31 @@ class SynthTab(TranscriptionDataset):
             audio = torch.cat(audio)
 
             if self.save_data:
+                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                torch.save(audio, audio_path)
+
+        # Determine the expected path to the track's ground-truth
+        gt_path = self.get_gt_dir(track)
+
+        # Check if an entry for the data exists
+        if self.save_data and os.path.exists(gt_path):
+            # Load and unpack the data
+            stacked_multi_pitch = np.load(gt_path, allow_pickle=True)['arr_0']
+        else:
+            # Construct the path to the track's JAMS data
+            jams_path = self.get_jams_path(track)
+
+            # Load the notes by string from the JAMS file
+            stacked_notes = load_stacked_notes_jams(jams_path)
+
+            times = self.data_proc.get_times(audio[0])
+
+            # Represent the string-wise notes as a stacked multi pitch array
+            stacked_multi_pitch = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes, times, self.profile)
+
+            if self.save_data:
                 os.makedirs(os.path.dirname(gt_path), exist_ok=True)
-                torch.save(audio, gt_path)
+                np.savez_compressed(gt_path, stacked_multi_pitch)
 
         if seq_length is not None:
             audio_length = audio[0].shape[-1]
@@ -172,24 +195,26 @@ class SynthTab(TranscriptionDataset):
             if audio_length >= seq_length:
                 # Sample a random starting index for the trim
                 sample_start = self.rng.randint(0, audio_length - seq_length + 1)
-                times = self.data_proc.get_times(audio[0])
                 # Trim audio to the sequence length
                 audio = torch.cat([a[..., sample_start: sample_start + seq_length].unsqueeze(0) for a in audio])
                 # Determine the frames contained in this slice
                 frame_start = sample_start // self.hop_length
                 frame_end = frame_start + self.num_frames
-                times = times[..., frame_start:frame_end]
+                stacked_multi_pitch = stacked_multi_pitch[..., frame_start:frame_end]
             else:
                 # Determine how much padding is required
                 pad_total = seq_length - audio_length
                 # Pad the audio with zeros
                 audio = torch.cat([torch.nn.functional.pad(a, (0, pad_total)).unsqueeze(0) for a in audio])
-                times = self.data_proc.get_times(audio[0])
+                stacked_multi_pitch = np.pad(stacked_multi_pitch, ((0, 0), (0, 0),
+                                                                   (0, self.num_frames - stacked_multi_pitch.shape[-1])))
 
-        # audio = process_audio_signals(audio, seq_length)
         # Mix microphone signals into mono-channel audio
         audio = torch.mean(audio, dim=0, keepdim=True)
-        
+
+        # TODO - add augmentation here
+        # audio = process_audio_signals(audio, seq_length)
+
         if self.audio_norm == -1:
             # Calculate the square root of the squared mean
             rms = torch.sqrt(torch.mean(audio ** 2))
@@ -203,15 +228,6 @@ class SynthTab(TranscriptionDataset):
 
         # Calculate the features
         features = self.data_proc.process_audio(audio.squeeze().numpy())
-
-        # Construct the path to the track's JAMS data
-        jams_path = self.get_jams_path(track)
-
-        # Load the notes by string from the JAMS file
-        stacked_notes = load_stacked_notes_jams(jams_path)
-
-        # Represent the string-wise notes as a stacked multi pitch array
-        stacked_multi_pitch = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes, times, self.profile)
 
         # Convert the stacked multi pitch array into tablature
         tablature = tools.stacked_multi_pitch_to_tablature(stacked_multi_pitch, self.profile)
