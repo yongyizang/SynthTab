@@ -22,6 +22,7 @@ import amt_tools.tools as tools
 # Regular imports
 from sacred.observers import FileStorageObserver
 from torch.utils.data import DataLoader
+from datetime import datetime
 from sacred import Experiment
 
 import torch
@@ -32,7 +33,8 @@ DEBUG = 0 # (0 - remote | 1 - desktop)
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     SynthTab.dataset_name(),
-                    CQT.features_name()])
+                    CQT.features_name(),
+                    datetime.now().strftime("%m-%d-%Y@%H:%M")])
 
 ex = Experiment('Train TabCNN w/ CQT on SynthTab and Evaluate on GuitarSet')
 
@@ -49,10 +51,10 @@ def config():
     num_frames = 1000
 
     # Number of training iterations to conduct
-    max_iterations = 5000
+    max_iterations = 100
 
     # How many equally spaced save/validation checkpoints - 0 to disable
-    checkpoints = 50
+    checkpoints = 100
 
     # Number of samples to gather for a batch
     batch_size = 16
@@ -200,7 +202,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                    iterations=max_iterations,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
-                   single_batch=True,
+                   single_batch=False,
                    val_set=synthtab_val,
                    estimator=validation_estimator,
                    evaluator=validation_evaluator)
