@@ -2,7 +2,7 @@
 
 # My imports
 from amt_tools.datasets import TranscriptionDataset
-from augment import process_audio_files
+from augment import process_audio_signals
 
 import amt_tools.tools as tools
 
@@ -117,20 +117,19 @@ class SynthTab(TranscriptionDataset):
 
         return tracks
 
-    def load(self, track):
+    def get_track_data(self, track, sample_start=None, seq_length=None):
         """
-        Load the ground-truth from memory or generate it from scratch.
-
-        Parameters
-        ----------
-        track : string
-          SynthTab track to load
-
-        Returns
-        ----------
-        data : dict
-          Dictionary with ground-truth for the track
+        TODO
         """
+
+        # Check if a specific sequence length was given
+        if seq_length is None:
+            if self.seq_length is not None:
+                # Use the global sequence lengh
+                seq_length = self.seq_length
+            else:
+                # TODO - return full track
+                return NotImplementedError
 
         # Load the track data if it exists in memory, otherwise instantiate track data
         data = super().load(track)
@@ -138,23 +137,31 @@ class SynthTab(TranscriptionDataset):
         # Construct the paths to the track's audio
         audio_paths = self.get_audio_paths(track)
 
-        # TODO - describe what is happening here
-        audio = process_audio_files(audio_paths)
+        audio, fs = [], []
 
-        # Resample the audio along to the specified sampling rate
-        audio = librosa.resample(audio, orig_sr=44100, target_sr=self.sample_rate)
+        for path in audio_paths:
+            # Load the audio using librosa
+            audio_, fs_ = librosa.load(path, sr=self.sample_rate, mono=True)
+            fs += [fs_]
+            audio += [audio_]
 
-        if self.audio_norm == -1:
-            # Perform root-mean-square normalization
-            audio = tools.rms_norm(audio)
+        audio_length = audio[0].shape[-1]
+
+        if audio_length >= seq_length:
+            # Sample a random starting index for the trim
+            start = self.rng.randint(0, audio_length - seq_length + 1)
+            # Trim audio to the sequence length
+            audio = [a[..., start: start + seq_length] for a in audio]
         else:
-            # Normalize the audio using librosa
-            audio = librosa.util.normalize(audio, norm=self.audio_norm)
+            # Determine how much padding is required
+            pad_total = seq_length - audio_length
+            # Randomly distributed between both sides
+            pad_left = self.rng.randint(0, pad_total)
+            # Pad the audio with zeros
+            audio = [np.pad(a, (pad_left, pad_total - pad_left)) for a in audio]
 
-        if self.seq_length is not None:
-            if len(audio) < self.seq_length:
-                # Pad the audio to the requested sequence length if necessary
-                audio = np.pad(audio, (0, 1 + self.seq_length - len(audio)))
+        # TODO - describe what is happening here
+        audio = None # TODO - yongyi fix this
 
         # We need the frame times for the tablature
         times = self.data_proc.get_times(audio)
@@ -175,10 +182,13 @@ class SynthTab(TranscriptionDataset):
         multi_pitch = tools.stacked_multi_pitch_to_multi_pitch(stacked_multi_pitch)
 
         # Add all relevant ground-truth to the dictionary
-        data.update({tools.KEY_FS : self.sample_rate,
-                     tools.KEY_AUDIO : audio,
-                     tools.KEY_TABLATURE : tablature,
-                     tools.KEY_MULTIPITCH : multi_pitch})
+        data.update({tools.KEY_FS: self.sample_rate,
+                     tools.KEY_AUDIO: audio,
+                     tools.KEY_TABLATURE: tablature,
+                     tools.KEY_MULTIPITCH: multi_pitch})
+
+        # Calculate the features and add to the dictionary
+        data.update(self.calculate_feats(data))
 
         return data
 
