@@ -11,6 +11,8 @@ import numpy as np
 import guitarpro
 import librosa
 import jams
+import torch
+import torchaudio
 import random
 import os
 import soundfile as sf
@@ -74,8 +76,9 @@ class SynthTab(TranscriptionDataset):
     Implements a wrapper for SynthTab (TODO - url).
     """
 
-    def __init__(self, base_dir=None, splits=None, hop_length=512, sample_rate=44100,
-                       data_proc=None, profile=None, num_frames=None, audio_norm=-1, seed=0):
+    def __init__(self, base_dir=None, splits=None, hop_length=512, sample_rate=44100, data_proc=None,
+                       profile=None, num_frames=None, audio_norm=-1, reset_data=False, store_data=True,
+                       save_data=True, save_loc=None, seed=0):
         """
         Initialize an instance of SynthTab.
 
@@ -85,7 +88,7 @@ class SynthTab(TranscriptionDataset):
         """
 
         super().__init__(base_dir, splits, hop_length, sample_rate, data_proc, profile, num_frames,
-                         audio_norm, False, False, False, False, None, seed)
+                         audio_norm, False, reset_data, store_data, save_data, save_loc, seed)
 
     def get_tracks(self, split):
         """
@@ -118,7 +121,7 @@ class SynthTab(TranscriptionDataset):
 
         return tracks
 
-    def get_track_data(self, track, sample_start=None, seq_length=None):
+    def get_track_data(self, track, seq_length=None):
         """
         TODO
         """
@@ -129,54 +132,77 @@ class SynthTab(TranscriptionDataset):
             if self.seq_length is not None:
                 # Use the global sequence lengh
                 seq_length = self.seq_length
-            else:
-                # TODO - return full track
-                return NotImplementedError
 
-        # Load the track data if it exists in memory, otherwise instantiate track data
-        data = super().load(track)
+        # Default data to None (not existing)
+        data = dict()
 
-        # Construct the paths to the track's audio
-        audio_paths = self.get_audio_paths(track)
+        # Add the track ID to the dictionary
+        data[tools.KEY_TRACK] = track
 
-        audio, fs = [], []
+        # Determine the expected path to the track's data
+        gt_path = self.get_gt_dir(track)
 
-        for path in audio_paths:
-            # Load the audio using librosa
-            # audio_, fs_ = librosa.load(path, sr=self.sample_rate, mono=True, dtype=np.float32)
-            audio_, fs_ = sf.read(path, dtype='float32')
-            audio_ = librosa.resample(audio_.T, orig_sr=fs_, target_sr=self.sample_rate)
-            audio_ = audio_[0] * (random.random() * 0.8 + 0.2) # temp. Fix later.
-            fs += [fs_]
-            audio += [audio_]
-
-        audio_length = audio[0].shape[-1]
-
-        if audio_length >= seq_length:
-            # Sample a random starting index for the trim
-            start = self.rng.randint(0, audio_length - seq_length + 1)
-            # Trim audio to the sequence length
-            audio = [a[..., start: start + seq_length] for a in audio]
+        # Check if an entry for the data exists
+        if self.save_data and os.path.exists(gt_path):
+            # Load and unpack the data
+            audio = torch.load(gt_path)
         else:
-            # Determine how much padding is required
-            pad_total = seq_length - audio_length
-            # Randomly distributed between both sides
-            pad_left = self.rng.randint(0, pad_total)
-            # Pad the audio with zeros
-            audio = [np.pad(a, (pad_left, pad_total - pad_left)) for a in audio]
+            # Construct the paths to the track's audio
+            audio_paths = self.get_audio_paths(track)
+
+            audio = list()
+
+            for path in audio_paths:
+                # Load and normalize the audio
+                audio_, fs_ = torchaudio.load(path)
+                # Average channels to obtain mono-channel
+                audio_ = torch.mean(audio_, dim=0, keepdim=True)
+                # Resample audio to appropriate sampling rate
+                audio += [torchaudio.functional.resample(audio_, fs_, self.sample_rate)]
+
+            audio = torch.cat(audio)
+
+            if self.save_data:
+                os.makedirs(os.path.dirname(gt_path), exist_ok=True)
+                torch.save(audio, gt_path)
+
+        if seq_length is not None:
+            audio_length = audio[0].shape[-1]
+
+            if audio_length >= seq_length:
+                # Sample a random starting index for the trim
+                sample_start = self.rng.randint(0, audio_length - seq_length + 1)
+                times = self.data_proc.get_times(audio[0])
+                # Trim audio to the sequence length
+                audio = torch.cat([a[..., sample_start: sample_start + seq_length].unsqueeze(0) for a in audio])
+                # Determine the frames contained in this slice
+                frame_start = sample_start // self.hop_length
+                frame_end = frame_start + self.num_frames
+                times = times[..., frame_start:frame_end]
+            else:
+                # Determine how much padding is required
+                pad_total = seq_length - audio_length
+                # Pad the audio with zeros
+                audio = torch.cat([torch.nn.functional.pad(a, (0, pad_total)).unsqueeze(0) for a in audio])
+                times = self.data_proc.get_times(audio[0])
 
         # audio = process_audio_signals(audio, seq_length)
-        audio = np.mean(audio, axis=0)
+        # Mix microphone signals into mono-channel audio
+        audio = torch.mean(audio, dim=0, keepdim=True)
         
         if self.audio_norm == -1:
-            # Perform root-mean-square normalization
-            audio = tools.rms_norm(audio)
-        else:
-            # Normalize the audio using librosa
-            audio = librosa.util.normalize(audio, norm=self.audio_norm)
+            # Calculate the square root of the squared mean
+            rms = torch.sqrt(torch.mean(audio ** 2))
 
-        # We need the frame times for the tablature
-        times = self.data_proc.get_times(audio)
+            # If root-mean-square is zero (audio is all zeros), do nothing
+            if rms > 0:
+                # Divide the audio by the root-mean-square
+                audio = audio / rms
+        else:
+            return NotImplementedError
+
+        # Calculate the features
+        features = self.data_proc.process_audio(audio.squeeze().numpy())
 
         # Construct the path to the track's JAMS data
         jams_path = self.get_jams_path(track)
@@ -196,11 +222,10 @@ class SynthTab(TranscriptionDataset):
         # Add all relevant ground-truth to the dictionary
         data.update({tools.KEY_FS: self.sample_rate,
                      tools.KEY_AUDIO: audio,
+                     tools.KEY_FEATS: features,
                      tools.KEY_TABLATURE: tablature,
                      tools.KEY_MULTIPITCH: multi_pitch})
 
-        # Calculate the features and add to the dictionary
-        data.update(self.calculate_feats(data))
         # print('Time to load track: ', time.time() - timestart)
         return data
 

@@ -125,7 +125,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
         gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'GuitarSet')
 
         # Keep all cached data/features here
-        cache_dir = os.path.join('/', 'home', 'frank', 'data')
+        cache_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'synthtab_audio_npzs')
 
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,
@@ -135,6 +135,10 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                               num_frames=num_frames,
                               data_proc=data_proc,
                               profile=profile,
+                              reset_data=reset_data,
+                              store_data=False,
+                              save_data=True,
+                              save_loc=cache_dir,
                               seed=seed)
 
     # Instantiate the SynthTab validation partition
@@ -145,6 +149,10 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
                             num_frames=num_frames,
                             data_proc=data_proc,
                             profile=profile,
+                            reset_data=reset_data,
+                            store_data=False,
+                            save_data=True,
+                            save_loc=cache_dir,
                             seed=seed)
 
     # Create a PyTorch data loader for the dataset
