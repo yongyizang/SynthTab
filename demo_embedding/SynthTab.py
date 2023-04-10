@@ -142,11 +142,18 @@ class SynthTab(TranscriptionDataset):
         # Determine the expected path to the track's audio
         audio_path = self.get_feats_dir(track)
 
-        # Check if an entry for the data exists
-        if self.save_data and os.path.exists(audio_path):
-            # Load and unpack the data
-            audio = torch.load(audio_path)
-        else:
+        audio = None
+
+        try:
+            # Check if an entry for the data exists
+            if self.save_data and os.path.exists(audio_path):
+                # Load and unpack the data
+                audio = torch.load(audio_path)
+        except Exception as e:
+            # Print offending track to console
+            print(f'Error loading audio for track \'{track}\': {repr(e)}')
+
+        if audio is None:
             # Construct the paths to the track's audio
             audio_paths = self.get_audio_paths(track)
 
@@ -169,11 +176,18 @@ class SynthTab(TranscriptionDataset):
         # Determine the expected path to the track's ground-truth
         gt_path = self.get_gt_dir(track)
 
-        # Check if an entry for the data exists
-        if self.save_data and os.path.exists(gt_path):
-            # Load and unpack the data
-            stacked_multi_pitch = np.load(gt_path, allow_pickle=True)['arr_0']
-        else:
+        stacked_multi_pitch = None
+
+        try:
+            # Check if an entry for the data exists
+            if self.save_data and os.path.exists(gt_path):
+                # Load and unpack the data
+                stacked_multi_pitch = np.load(gt_path, allow_pickle=True)['arr_0']
+        except Exception as e:
+            # Print offending track to console
+            print(f'Error loading ground-truth for track \'{track}\': {repr(e)}')
+
+        if stacked_multi_pitch is None:
             # Construct the path to the track's JAMS data
             jams_path = self.get_jams_path(track)
 
