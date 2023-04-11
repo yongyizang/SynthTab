@@ -25,6 +25,7 @@ from torch.utils.data import DataLoader
 from datetime import datetime
 from sacred import Experiment
 
+import numpy as np
 import torch
 import os
 
@@ -170,6 +171,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                           hop_length=hop_length,
                           sample_rate=sample_rate,
                           num_frames=None,
+                          audio_norm=np.inf,
                           data_proc=data_proc,
                           profile=profile,
                           store_data=False,

@@ -165,7 +165,12 @@ class SynthTab(TranscriptionDataset):
                 # Obtain mono-channel
                 audio_ = audio_[0].unsqueeze(0)
                 # Resample audio to appropriate sampling rate
-                audio += [torchaudio.functional.resample(audio_, fs_, self.sample_rate)]
+                audio_ = torchaudio.functional.resample(audio_, fs_, self.sample_rate)
+                # Normalize the audio to the range [-1, 1]
+                # TODO - self.audio_norm unused
+                audio_ /= audio_.max()
+
+                audio += [audio_]
 
             audio = torch.cat(audio)
 
@@ -229,17 +234,6 @@ class SynthTab(TranscriptionDataset):
 
         # TODO - add augmentation here
         # audio = process_audio_signals(audio, seq_length)
-
-        if self.audio_norm == -1:
-            # Calculate the square root of the squared mean
-            rms = torch.sqrt(torch.mean(audio ** 2))
-
-            # If root-mean-square is zero (audio is all zeros), do nothing
-            if rms > 0:
-                # Divide the audio by the root-mean-square
-                audio = audio / rms
-        else:
-            return NotImplementedError
 
         # Calculate the features
         features = self.data_proc.process_audio(audio.squeeze().numpy())
