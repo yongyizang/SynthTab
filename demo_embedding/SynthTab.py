@@ -224,7 +224,8 @@ class SynthTab(TranscriptionDataset):
                                                                    (0, self.num_frames - stacked_multi_pitch.shape[-1])))
 
         # Mix microphone signals into mono-channel audio
-        audio = torch.mean(audio, dim=0, keepdim=True)
+        #audio = torch.mean(audio, dim=0, keepdim=True)
+        audio = audio[self.rng.randint(0, audio.shape[0])].unsqueeze(0)
 
         # TODO - add augmentation here
         # audio = process_audio_signals(audio, seq_length)
@@ -301,6 +302,20 @@ class SynthTab(TranscriptionDataset):
         jams_path = os.path.join(self.base_dir, os.path.dirname(track), 'ground_truth.jams')
 
         return jams_path
+
+    def get_feats_dir(self, track=None):
+        """
+        TODO
+        """
+
+        # Get the path to the features directory
+        path = os.path.join(self.save_loc, self.dataset_name(), 'audio')
+
+        # Add the track name and the .npz extension if a track was provided
+        if track is not None:
+            path = os.path.join(path, f'{track}.{tools.NPZ_EXT}')
+
+        return path
 
     @staticmethod
     def available_splits():

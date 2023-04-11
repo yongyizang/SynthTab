@@ -106,7 +106,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
     tools.seed_everything(seed)
 
     # Initialize the default guitar profile
-    profile = tools.GuitarProfile(num_frets=22)
+    profile = tools.GuitarProfile(num_frets=19)
 
     # Create an HCQT feature extraction module comprising
     # the first five harmonics and a sub-harmonic, where each
@@ -143,8 +143,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
         gset_base_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'GuitarSet')
 
         # Keep all cached data/features here
-        # TODO - change to 'precomputed'
-        cache_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'synthtab_audio_npzs')
+        cache_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'precomputed')
 
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,
