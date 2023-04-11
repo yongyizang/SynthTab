@@ -52,9 +52,9 @@ def config():
     num_frames = 1000
 
     # Number of training iterations to conduct
-    max_iterations = 10000
+    epochs = 100
 
-    # How many equally spaced save/validation checkpoints - 0 to disable
+    # Number batches in between checkpoints
     checkpoints = 100
 
     # Number of samples to gather for a batch
@@ -83,7 +83,7 @@ def config():
     seed = 0
 
     # Number of threads to use for data loading
-    n_workers = 0 if DEBUG else 16
+    n_workers = 0 if DEBUG else 12
 
     # Create the root directory for the experiment files
     if DEBUG:
@@ -99,7 +99,7 @@ def config():
 
 
 @ex.automain
-def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, checkpoints,
+def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints,
                         batch_size, learning_rate, gpu_id, reset_data, lmbda, matrix_path,
                         silence_activations, seed, n_workers, root_dir):
     # Seed everything with the same seed
@@ -220,10 +220,9 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, max_iterations, che
     tabcnn = train(model=fretnet,
                    train_loader=train_loader,
                    optimizer=optimizer,
-                   iterations=max_iterations,
+                   epochs=epochs,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
-                   single_batch=True,
                    val_set=synthtab_val,
                    estimator=validation_estimator,
                    evaluator=validation_evaluator)

@@ -16,8 +16,8 @@ __all__ = [
 ]
 
 
-def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.', scheduler=None,
-          resume=True, single_batch=False, val_set=None, estimator=None, evaluator=None, vis_fnc=None):
+def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.', scheduler=None,
+          resume=True, val_set=None, estimator=None, evaluator=None):
     """
     Implements the training loop for an experiment.
 
@@ -29,7 +29,7 @@ def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.'
       PyTorch Dataloader object for retrieving batches of data
     optimizer : Optimizer
       PyTorch Optimizer for updating weights - expected to have only one parameter group
-    iterations : int
+    epochs : int
       Number of loops through the dataset;
       Each loop may be comprised of multiple batches;
       Each loop contains a snippet of each track exactly once
@@ -41,17 +41,12 @@ def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.'
       PyTorch Scheduler used to update learning rate
     resume : bool
       Start from most recently saved model and optimizer state
-    single_batch : bool
-      Only process the first batch within each validation loop
     val_set : TranscriptionDataset or None (optional)
       Dataset to use for validation loops
     estimator : Estimator
       Estimation protocol to use during validation
     evaluator : Evaluator
       Evaluation protocol to use during validation
-    vis_fnc : function(model, i)
-      TODO - generalize to any extra validation steps
-      Function to perform any visualization steps during validation loop
 
     Returns
     ----------
@@ -81,8 +76,8 @@ def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.'
         # Check if any previous checkpoints exist
         if len(model_files) > 0 and len(optimizer_files) > 0:
             # Define the tags for the model and state at the selected number of iterations
-            max_model = f'{tools.PYT_MODEL}-{iterations}.{tools.PYT_EXT}'
-            max_state = f'{tools.PYT_STATE}-{iterations}.{tools.PYT_EXT}'
+            max_model = f'{tools.PYT_MODEL}-{epochs}.{tools.PYT_EXT}'
+            max_state = f'{tools.PYT_STATE}-{epochs}.{tools.PYT_EXT}'
 
             # Check if a model/state already exists for the selected iterations
             model_index = model_files.index(max_model) if max_model in model_files else -1
@@ -115,7 +110,7 @@ def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.'
     # Make sure the model is in training mode
     model.train()
 
-    for global_iter in tqdm(range(start_iter, iterations)):
+    for epoch in tqdm(range(start_iter, epochs)):
         # Collection of losses for each batch in the loop
         train_loss = dict()
         # Loop through the dataset
@@ -131,62 +126,46 @@ def train(model, train_loader, optimizer, iterations, checkpoints=0, log_dir='.'
             batch_loss[tools.KEY_LOSS_TOTAL].backward()
             # Add all of the losses to the collection
             train_loss = append_results(train_loss, tools.dict_to_array(batch_loss))
-            # Perform gradient clipping
-            # TODO = make optional
-            #nn.utils.clip_grad_norm_(model.parameters(), 3)
             # Perform an optimization step
             optimizer.step()
 
-            if single_batch:
-                # Move onto the next iteration after the first batch
-                break
+            # Average the loss from all of the batches within this loop
+            train_loss = average_results(train_loss)
+            # Log the training loss(es)
+            log_results(train_loss, writer, step=model.iter, tag=f'{tools.TRAIN}/{tools.KEY_LOSS}')
+
+            # Increase the iteration count by one
+            model.iter += 1
+
+            if model.iter % checkpoints == 0:
+                # Save the model
+                torch.save(model, os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}'))
+                # Save the optimizer sate
+                torch.save(optimizer.state_dict(), os.path.join(log_dir, f'{tools.PYT_STATE}-{model.iter}.{tools.PYT_EXT}'))
+
+                # If we are at a checkpoint, and a validation set with an estimator is available
+                if val_set is not None and evaluator is not None:
+                    # Validate the current model weights
+                    validate(model, val_set, evaluator, estimator)
+                    # Average the results, log them, and reset the tracking
+                    evaluator.finalize(writer, model.iter)
+                    # Make sure the model is back in training mode
+                    model.train()
 
         if scheduler is not None:
             # Perform a learning rate scheduler step
             scheduler.step()
 
-        # Increase the iteration count by one
-        model.iter += 1
+    # Save the model
+    torch.save(model, os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}'))
+    # Save the optimizer sate
+    torch.save(optimizer.state_dict(), os.path.join(log_dir, f'{tools.PYT_STATE}-{model.iter}.{tools.PYT_EXT}'))
 
-        # Average the loss from all of the batches within this loop
-        train_loss = average_results(train_loss)
-        # Log the training loss(es)
-        log_results(train_loss, writer, step=global_iter+1, tag=f'{tools.TRAIN}/{tools.KEY_LOSS}')
-
-        # Local iteration of this training sequence
-        local_iter = global_iter - start_iter
-
-        # Set a boolean representing whether current iteration is a checkpoint
-        if checkpoints == 0:
-            checkpoint = False
-        else:
-            # TODO - checkpoint at iteration 0?
-            checkpoint = (local_iter + 1) % (iterations // checkpoints) == 0
-
-        # Boolean representing whether training has been completed
-        done_training = (global_iter + 1) == iterations
-
-        # If we are at a checkpoint, or we have finished training
-        if checkpoint or done_training:
-            # TODO - save random seed(s) from dataset(s) as well
-            # Save the model
-            torch.save(model,
-                       os.path.join(log_dir, f'{tools.PYT_MODEL}-{global_iter + 1}.{tools.PYT_EXT}'))
-            # Save the optimizer sate
-            torch.save(optimizer.state_dict(),
-                       os.path.join(log_dir, f'{tools.PYT_STATE}-{global_iter + 1}.{tools.PYT_EXT}'))
-
-            # If visualization protocol was specified, follow it
-            if vis_fnc is not None:
-                vis_fnc(model, global_iter + 1)
-
-            # If we are at a checkpoint, and a validation set with an estimator is available
-            if checkpoint and val_set is not None and evaluator is not None:
-                # Validate the current model weights
-                validate(model, val_set, evaluator, estimator)
-                # Average the results, log them, and reset the tracking
-                evaluator.finalize(writer, global_iter + 1)
-                # Make sure the model is back in training mode
-                model.train()
+    # If we are at a checkpoint, and a validation set with an estimator is available
+    if val_set is not None and evaluator is not None:
+        # Validate the current model weights
+        validate(model, val_set, evaluator, estimator)
+        # Average the results, log them, and reset the tracking
+        evaluator.finalize(writer, model.iter)
 
     return model

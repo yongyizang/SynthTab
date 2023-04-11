@@ -162,8 +162,8 @@ class SynthTab(TranscriptionDataset):
             for path in audio_paths:
                 # Load and normalize the audio
                 audio_, fs_ = torchaudio.load(path)
-                # Average channels to obtain mono-channel
-                audio_ = torch.mean(audio_, dim=0, keepdim=True)
+                # Obtain mono-channel
+                audio_ = audio_[0]
                 # Resample audio to appropriate sampling rate
                 audio += [torchaudio.functional.resample(audio_, fs_, self.sample_rate)]
 
