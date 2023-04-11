@@ -114,7 +114,7 @@ def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.', sc
         # Collection of losses for each batch in the loop
         train_loss = dict()
         # Loop through the dataset
-        for batch in train_loader:
+        for batch in tqdm(train_loader, desc='Step'):
             # batch["audio"] = batch["audio"].to(model.device)
             # Zero the accumulated gradients
             optimizer.zero_grad()
