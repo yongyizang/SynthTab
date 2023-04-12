@@ -199,6 +199,15 @@ class SynthTab(TranscriptionDataset):
             # Load the notes by string from the JAMS file
             stacked_notes = load_stacked_notes_jams(jams_path)
 
+            # TODO - uncomment the following to view tablature
+            #import matplotlib.pyplot as plt
+            #import matplotlib
+            #matplotlib.use("TkAgg")
+            #stacked_frets = tools.stacked_notes_to_frets(stacked_notes)
+            #fig = tools.initialize_figure(interactive=False, figsize=(20, 5))
+            #fig = tools.plot_guitar_tablature(stacked_frets, fig=fig, x_bounds=[0, 20])
+            #plt.show(block=False)
+
             times = self.data_proc.get_times(audio[0])
 
             # Represent the string-wise notes as a stacked multi pitch array
