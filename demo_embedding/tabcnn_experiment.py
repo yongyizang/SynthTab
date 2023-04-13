@@ -5,8 +5,8 @@ from amt_tools.datasets import GuitarSet
 from amt_tools.models import TabCNN
 from amt_tools.features import CQT
 from SynthTab import SynthTab
-
 from train import train
+
 from amt_tools.transcribe import ComboEstimator, \
                                  TablatureWrapper, \
                                  StackedMultiPitchCollapser
