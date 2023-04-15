@@ -31,7 +31,7 @@ import torch
 import os
 
 
-DEBUG = 1 # (0 - remote | 1 - desktop)
+DEBUG = 0 # (0 - remote | 1 - desktop)
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     GuitarSet.dataset_name(),

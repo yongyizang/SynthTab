@@ -149,6 +149,7 @@ def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.', sc
                     validate(model, val_set, evaluator, estimator)
                     # Average the results, log them, and reset the tracking
                     evaluator.finalize(writer, model.iter)
+                    # TODO - add forced stopping criterion?
                     # Make sure the model is back in training mode
                     model.train()
 

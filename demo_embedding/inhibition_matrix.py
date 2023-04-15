@@ -13,7 +13,7 @@ from sacred import Experiment
 import os
 
 
-DEBUG = 1 # (0 - remote | 1 - desktop)
+DEBUG = 0 # (0 - remote | 1 - desktop)
 
 ex = Experiment('Obtain an inhibition matrix for the SynthTab training set')
 
@@ -70,6 +70,7 @@ def train_matrix(sample_rate, hop_length, num_frets, silence_activations, boost)
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,
                               splits=['train'],
+                              guitars=['luthier'],
                               hop_length=hop_length,
                               sample_rate=sample_rate,
                               num_frames=None,

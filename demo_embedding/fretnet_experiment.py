@@ -71,6 +71,9 @@ def config():
     # features (useful if testing out different parameters)
     reset_data = False
 
+    # Flag to augment audio during training
+    augment = False
+
     # Multiplier for inhibition loss if applicable
     lmbda = 10
 
@@ -79,6 +82,9 @@ def config():
 
     # Flag to include an activation for silence in applicable output layers
     silence_activations = True
+
+    # Flag to include an additional onset head in FretNet
+    estimate_onsets = True
 
     # The random seed for this experiment
     seed = 0
@@ -100,9 +106,9 @@ def config():
 
 
 @ex.automain
-def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints,
-                        batch_size, learning_rate, gpu_id, reset_data, lmbda, matrix_path,
-                        silence_activations, seed, n_workers, root_dir):
+def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints, batch_size,
+                        learning_rate, gpu_id, reset_data, augment, lmbda, matrix_path,
+                        silence_activations, estimate_onsets, seed, n_workers, root_dir):
     # Seed everything with the same seed
     tools.seed_everything(seed)
 
@@ -149,9 +155,13 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     # Instantiate the SynthTab training partition
     synthtab_train = SynthTab(base_dir=synthtab_base_dir,
                               splits=['train'],
+                              guitars=['luthier', 'martin', 'taylor'],
                               hop_length=hop_length,
                               sample_rate=sample_rate,
                               num_frames=num_frames,
+                              sample_attempts=10,
+                              augment_audio=augment,
+                              include_onsets=estimate_onsets,
                               data_proc=data_proc,
                               profile=profile,
                               reset_data=reset_data,
@@ -163,9 +173,12 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     # Instantiate the SynthTab validation partition
     synthtab_val = SynthTab(base_dir=synthtab_base_dir,
                             splits=['val'],
+                            guitars=['gibson'],
                             hop_length=hop_length,
                             sample_rate=sample_rate,
                             num_frames=num_frames,
+                            augment_audio=False,
+                            include_onsets=estimate_onsets,
                             data_proc=data_proc,
                             profile=profile,
                             reset_data=reset_data,
@@ -218,7 +231,6 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     model_dir = os.path.join(root_dir, 'models')
 
     # Train the model until stopping criterion is reached
-    # TODO - add forced stopping criterion?
     tabcnn = train(model=fretnet,
                    train_loader=train_loader,
                    optimizer=optimizer,
