@@ -89,7 +89,7 @@ def config():
     matrix_path = None
 
     # Flag to include an additional onset head
-    estimate_onsets = True
+    estimate_onsets = False
 
     # The random seed for this experiment
     seed = 0

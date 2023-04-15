@@ -25,12 +25,31 @@ class FretNetRecurrent(FretNet):
 
         super().__init__(**kwargs)
 
-        # Break off the first linear layer in the tablature head so it can be replaced
-        linear_layer, tablature_head = self.tablature_head[0], self.tablature_head[1:]
+        # Break apart the tablature head
+        linear_layer_t = self.tablature_head[0]
+        head_contents_t = self.tablature_head[1 : -1]
+        tablature_layer_t = self.tablature_head[-1]
 
-        # Insert the recurrent layer before the output layer
+        # Reconstruct the tablature head with a recurrent layer
         self.tablature_head = torch.nn.Sequential(
-            OnlineLanguageModel(dim_in=linear_layer.in_features,
-                                dim_out=linear_layer.out_features),
-            tablature_head
+            linear_layer_t,
+            head_contents_t,
+            OnlineLanguageModel(dim_in=linear_layer_t.out_features,
+                                dim_out=tablature_layer_t.dim_in),
+            tablature_layer_t
         )
+
+        if self.estimate_onsets:
+            # Break apart the onset detection head
+            linear_layer_o = self.onsets_head[0]
+            head_contents_o = self.onsets_head[1: -1]
+            tablature_layer_o = self.onsets_head[-1]
+
+            # Insert the recurrent layer in place of the linear layer
+            self.onsets_head = torch.nn.Sequential(
+                linear_layer_o,
+                head_contents_o,
+                OnlineLanguageModel(dim_in=linear_layer_o.out_features,
+                                    dim_out=tablature_layer_o.dim_in),
+                tablature_layer_o
+            )
