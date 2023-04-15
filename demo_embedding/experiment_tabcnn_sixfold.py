@@ -2,10 +2,9 @@
 
 # My imports
 from amt_tools.datasets import GuitarSet
-from amt_tools.models import TabCNN
 from amt_tools.features import CQT
-
 from train import train
+
 from amt_tools.transcribe import ComboEstimator, \
                                  TablatureWrapper, \
                                  StackedMultiPitchCollapser
@@ -49,7 +48,7 @@ EX_NAME = '_'.join([TabCNN.model_name(),
                     CQT.features_name(),
                     datetime.now().strftime("%m-%d-%Y@%H:%M")])
 
-ex = Experiment('TabCNN w/ CQT on GuitarSet w/ 6-fold Cross Validation')
+ex = Experiment('6-fold Cross Validation for TabCNN w/ CQT on GuitarSet')
 
 
 @ex.config
@@ -61,16 +60,16 @@ def config():
     hop_length = 512
 
     # Number of consecutive frames within each example fed to the model
-    num_frames = 200
+    num_frames = 500
 
-    # Number of training iterations to conduct
-    iterations = 1000
+    # Number of epochs
+    epochs = 1000
 
-    # How many equally spaced save/validation checkpoints - 0 to disable
-    checkpoints = 50
+    # Number batches in between checkpoints
+    checkpoints = 100
 
     # Number of samples to gather for a batch
-    batch_size = 30
+    batch_size = 15
 
     # The id of the gpu to use, if available
     gpu_id = 0
@@ -85,11 +84,14 @@ def config():
     # Path to inhibition matrix if applicable
     matrix_path = None
 
-    # Path to pre-trained model checkpoints to initialize with
-    pre_trained_path = None
-
     # The random seed for this experiment
     seed = 0
+
+    # Path to a pre-trained model checkpoint to load each for fold
+    pre_trained_path = None
+
+    # Number of threads to use for data loading
+    n_workers = 0 if DEBUG else 5
 
     # Create the root directory for the experiment files
     if DEBUG:
@@ -105,8 +107,9 @@ def config():
 
 
 @ex.automain
-def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoints, batch_size,
-                     gpu_id, reset_data, lmbda, matrix_path, pre_trained_path, seed, root_dir):
+def tabcnn_cross_val(sample_rate, hop_length, num_frames, epochs, checkpoints,
+                     batch_size, gpu_id, reset_data, lmbda, matrix_path, seed,
+                     pre_trained_path, n_workers, root_dir):
     # Initialize the default guitar profile
     profile = tools.GuitarProfile(num_frets=19)
 
@@ -151,13 +154,14 @@ def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoint
         # Set validation patterns for logging during training
         validation_evaluator.set_patterns(['loss', 'pr', 're', 'f1', 'tdr', 'acc'])
 
-        # Allocate training/testing splits
+        # Allocate training/validation/testing splits
         train_splits = GuitarSet.available_splits()
+        val_splits = [train_splits.pop(k - 1)]
         test_splits = [train_splits.pop(k)]
 
         print('Loading training partition...')
 
-        # Create a dataset corresponding to the training partition
+        # Instantiate the GuitarSet training partition
         gset_train = GuitarSet(base_dir=gset_base_dir,
                                splits=train_splits,
                                hop_length=hop_length,
@@ -175,12 +179,28 @@ def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoint
         train_loader = DataLoader(dataset=gset_train,
                                   batch_size=batch_size,
                                   shuffle=True,
-                                  num_workers=8,
+                                  num_workers=n_workers,
                                   drop_last=True)
+
+        print(f'Loading validation partition (player {val_splits[0]})...')
+
+        # Instantiate the GuitarSet validation partition
+        gset_val = GuitarSet(base_dir=gset_base_dir,
+                             splits=val_splits,
+                             hop_length=hop_length,
+                             sample_rate=sample_rate,
+                             num_frames=num_frames,
+                             audio_norm=np.inf,
+                             data_proc=data_proc,
+                             profile=profile,
+                             store_data=True,
+                             save_data=True,
+                             reset_data=reset_data,
+                             save_loc=gset_cache)
 
         print(f'Loading testing partition (player {test_splits[0]})...')
 
-        # Create a dataset corresponding to the testing partition
+        # Instantiate the GuitarSet testing partition
         gset_test = GuitarSet(base_dir=gset_base_dir,
                               splits=test_splits,
                               hop_length=hop_length,
@@ -189,7 +209,7 @@ def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoint
                               audio_norm=np.inf,
                               data_proc=data_proc,
                               profile=profile,
-                              store_data=True,
+                              store_data=False,
                               save_data=True,
                               save_loc=gset_cache)
 
@@ -224,14 +244,14 @@ def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoint
         # Create a log directory for the training experiment
         model_dir = os.path.join(root_dir, 'models', 'fold-' + str(k))
 
-        # Train the model
+        # Enter the training loop
         tabcnn = train(model=tabcnn,
                        train_loader=train_loader,
                        optimizer=optimizer,
-                       epochs=iterations,
+                       epochs=epochs,
                        checkpoints=checkpoints,
                        log_dir=model_dir,
-                       val_set=gset_test,
+                       val_set=gset_val,
                        estimator=validation_estimator,
                        evaluator=validation_evaluator)
 

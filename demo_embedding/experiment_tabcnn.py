@@ -2,10 +2,10 @@
 
 # My imports
 from amt_tools.datasets import GuitarSet
-from amt_tools.features import HCQT
+from amt_tools.features import CQT
 from SynthTab import SynthTab
-
 from train import train
+
 from amt_tools.transcribe import ComboEstimator, \
                                  TablatureWrapper, \
                                  StackedMultiPitchCollapser
@@ -25,22 +25,26 @@ from datetime import datetime
 from sacred import Experiment
 
 import numpy as np
-import librosa
 import torch
 import os
 
 
 DEBUG = 0 # (0 - remote | 1 - desktop)
 RECURRENT = 0 # (0 - no recurrence | 1 - recurrence)
+LOGISTIC = 0 # (0 - softmax output layer | 1 - logistic output layer)
 
-if RECURRENT:
-    from models import FretNetRecurrent as FretNet
+if RECURRENT and LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogisticRecurrent as TabCNN
+elif RECURRENT:
+    from guitar_transcription_inhibition.models import TabCNNRecurrent as TabCNN
+elif LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogistic as TabCNN
 else:
-    from guitar_transcription_continuous.models import FretNet
+    from amt_tools.models import TabCNN
 
-EX_NAME = '_'.join([FretNet.model_name(),
+EX_NAME = '_'.join([TabCNN.model_name(),
                     SynthTab.dataset_name(),
-                    HCQT.features_name(),
+                    CQT.features_name(),
                     datetime.now().strftime("%m-%d-%Y@%H:%M")])
 
 ex = Experiment('Train TabCNN w/ CQT on SynthTab and Evaluate on GuitarSet')
@@ -55,19 +59,16 @@ def config():
     hop_length = 512
 
     # Number of consecutive frames within each example fed to the model
-    num_frames = 1000
+    num_frames = 500
 
-    # Number of training iterations to conduct
+    # Number of epochs
     epochs = 100
 
     # Number batches in between checkpoints
     checkpoints = 100
 
     # Number of samples to gather for a batch
-    batch_size = 16
-
-    # The fixed or initial learning rate
-    learning_rate = 5E-4
+    batch_size = 32
 
     # The id of the gpu to use, if available
     gpu_id = 0
@@ -79,17 +80,11 @@ def config():
     # Flag to augment audio during training
     augment = False
 
-    # Scaling factor for complexity of model
-    model_complexity = 1
-
     # Multiplier for inhibition loss if applicable
     lmbda = 10
 
     # Path to inhibition matrix if applicable
     matrix_path = None
-
-    # Flag to include an additional onset head in FretNet
-    estimate_onsets = True
 
     # The random seed for this experiment
     seed = 0
@@ -111,23 +106,21 @@ def config():
 
 
 @ex.automain
-def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints, batch_size,
-                        learning_rate, gpu_id, reset_data, augment, model_complexity, lmbda,
-                        matrix_path, estimate_onsets, seed, n_workers, root_dir):
+def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints,
+                        batch_size, gpu_id, reset_data, augment, lmbda, matrix_path,
+                        seed, n_workers, root_dir):
     # Seed everything with the same seed
     tools.seed_everything(seed)
 
     # Initialize the default guitar profile
     profile = tools.GuitarProfile(num_frets=19)
 
-    # Create an HCQT feature extraction module comprising
-    # the first five harmonics and a sub-harmonic, where each
-    # harmonic transform spans 4 octaves w/ 3 bins per semitone
-    data_proc = HCQT(sample_rate=sample_rate,
-                     hop_length=hop_length,
-                     fmin=librosa.note_to_hz('E2'),
-                     harmonics=[0.5, 1, 2, 3, 4, 5],
-                     n_bins=144, bins_per_octave=36)
+    # Create a CQT feature extraction module
+    # spanning 8 octaves w/ 2 bins per semitone
+    data_proc = CQT(sample_rate=sample_rate,
+                    hop_length=hop_length,
+                    n_bins=192,
+                    bins_per_octave=24)
 
     # Initialize the estimation pipeline (Tablature -> Stacked Multi Pitch -> Multi Pitch)
     validation_estimator = ComboEstimator([TablatureWrapper(profile=profile),
@@ -164,9 +157,9 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                               hop_length=hop_length,
                               sample_rate=sample_rate,
                               num_frames=num_frames,
-                              sample_attempts=10,
+                              sample_attempts=5,
                               augment_audio=augment,
-                              include_onsets=estimate_onsets,
+                              include_onsets=False,
                               data_proc=data_proc,
                               profile=profile,
                               reset_data=reset_data,
@@ -174,6 +167,14 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                               save_data=True,
                               save_loc=cache_dir,
                               seed=seed)
+
+    # Create a PyTorch data loader for the dataset
+    train_loader = DataLoader(dataset=synthtab_train,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              pin_memory=True,
+                              num_workers=n_workers,
+                              drop_last=True)
 
     # Instantiate the SynthTab validation partition
     synthtab_val = SynthTab(base_dir=synthtab_base_dir,
@@ -183,7 +184,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                             sample_rate=sample_rate,
                             num_frames=num_frames,
                             augment_audio=False,
-                            include_onsets=estimate_onsets,
+                            include_onsets=False,
                             data_proc=data_proc,
                             profile=profile,
                             reset_data=reset_data,
@@ -191,14 +192,6 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                             save_data=True,
                             save_loc=cache_dir,
                             seed=seed)
-
-    # Create a PyTorch data loader for the dataset
-    train_loader = DataLoader(dataset=synthtab_train,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              pin_memory=True,
-                              num_workers=n_workers,
-                              drop_last=True)
 
     # Instantiate GuitarSet for testing
     gset_test = GuitarSet(base_dir=gset_base_dir,
@@ -215,29 +208,32 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     print('Initializing model...')
 
     # Initialize a new instance of the model
-    fretnet = FretNet(dim_in=data_proc.get_feature_size(),
-                      profile=profile,
-                      in_channels=data_proc.get_num_channels(),
-                      model_complexity=model_complexity,
-                      cont_layer=None,
-                      matrix_path=matrix_path,
-                      silence_activations=True,
-                      lmbda=lmbda,
-                      estimate_onsets=estimate_onsets,
-                      device=gpu_id)
-    fretnet.change_device()
-    fretnet.train()
+    if LOGISTIC:
+        tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                        profile=profile,
+                        in_channels=data_proc.get_num_channels(),
+                        matrix_path=matrix_path,
+                        silence_activations=True,
+                        lmbda=lmbda,
+                        device=gpu_id)
+    else:
+        tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                        profile=profile,
+                        in_channels=data_proc.get_num_channels(),
+                        device=gpu_id)
+    tabcnn.change_device()
+    tabcnn.train()
 
     # Initialize a new optimizer for the model parameters
-    optimizer = torch.optim.Adam(fretnet.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adadelta(tabcnn.parameters(), lr=1.0)
 
     print('Training model...')
 
     # Create a log directory for the training experiment
     model_dir = os.path.join(root_dir, 'models')
 
-    # Train the model until stopping criterion is reached
-    tabcnn = train(model=fretnet,
+    # Enter the training loop
+    tabcnn = train(model=tabcnn,
                    train_loader=train_loader,
                    optimizer=optimizer,
                    epochs=epochs,
