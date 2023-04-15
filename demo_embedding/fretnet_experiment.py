@@ -1,7 +1,6 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
-from guitar_transcription_continuous.models import FretNet
 from amt_tools.datasets import GuitarSet
 from amt_tools.features import HCQT
 from SynthTab import SynthTab
@@ -32,6 +31,12 @@ import os
 
 
 DEBUG = 0 # (0 - remote | 1 - desktop)
+RECURRENT = 0 # (0 - no recurrence | 1 - recurrence)
+
+if RECURRENT:
+    from models import FretNetRecurrent as FretNet
+else:
+    from guitar_transcription_continuous.models import FretNet
 
 EX_NAME = '_'.join([FretNet.model_name(),
                     SynthTab.dataset_name(),
@@ -74,14 +79,14 @@ def config():
     # Flag to augment audio during training
     augment = False
 
+    # Scaling factor for complexity of model
+    model_complexity = 1
+
     # Multiplier for inhibition loss if applicable
     lmbda = 10
 
     # Path to inhibition matrix if applicable
     matrix_path = None
-
-    # Flag to include an activation for silence in applicable output layers
-    silence_activations = True
 
     # Flag to include an additional onset head in FretNet
     estimate_onsets = True
@@ -107,8 +112,8 @@ def config():
 
 @ex.automain
 def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints, batch_size,
-                        learning_rate, gpu_id, reset_data, augment, lmbda, matrix_path,
-                        silence_activations, estimate_onsets, seed, n_workers, root_dir):
+                        learning_rate, gpu_id, reset_data, augment, model_complexity, lmbda,
+                        matrix_path, estimate_onsets, seed, n_workers, root_dir):
     # Seed everything with the same seed
     tools.seed_everything(seed)
 
@@ -213,11 +218,12 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     fretnet = FretNet(dim_in=data_proc.get_feature_size(),
                       profile=profile,
                       in_channels=data_proc.get_num_channels(),
-                      lmbda=lmbda,
-                      matrix_path=matrix_path,
-                      silence_activations=silence_activations,
+                      model_complexity=model_complexity,
                       cont_layer=None,
-                      estimate_onsets=False,
+                      matrix_path=matrix_path,
+                      silence_activations=True,
+                      lmbda=lmbda,
+                      estimate_onsets=estimate_onsets,
                       device=gpu_id)
     fretnet.change_device()
     fretnet.train()

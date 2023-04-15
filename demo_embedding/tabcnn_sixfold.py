@@ -32,6 +32,17 @@ import os
 
 
 DEBUG = 0 # (0 - remote | 1 - desktop)
+RECURRENT = 0 # (0 - no recurrence | 1 - recurrence)
+LOGISTIC = 0 # (0 - softmax output layer | 1 - logistic output layer)
+
+if RECURRENT and LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogisticRecurrent as TabCNN
+elif RECURRENT:
+    from guitar_transcription_inhibition.models import TabCNNRecurrent as TabCNN
+elif LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogistic as TabCNN
+else:
+    from amt_tools.models import TabCNN
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     GuitarSet.dataset_name(),
@@ -68,6 +79,15 @@ def config():
     # features (useful if testing out different parameters)
     reset_data = False
 
+    # Multiplier for inhibition loss if applicable
+    lmbda = 10
+
+    # Path to inhibition matrix if applicable
+    matrix_path = None
+
+    # Path to pre-trained model checkpoints to initialize with
+    pre_trained_path = None
+
     # The random seed for this experiment
     seed = 0
 
@@ -85,9 +105,8 @@ def config():
 
 
 @ex.automain
-def tabcnn_cross_val(sample_rate, hop_length, num_frames,
-                     iterations, checkpoints, batch_size,
-                     gpu_id, reset_data, seed, root_dir):
+def tabcnn_cross_val(sample_rate, hop_length, num_frames, iterations, checkpoints, batch_size,
+                     gpu_id, reset_data, lmbda, matrix_path, pre_trained_path, seed, root_dir):
     # Initialize the default guitar profile
     profile = tools.GuitarProfile(num_frets=19)
 
@@ -176,12 +195,25 @@ def tabcnn_cross_val(sample_rate, hop_length, num_frames,
 
         print('Initializing model...')
 
-        # Initialize a new instance of the model
-        tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
-                        profile=profile,
-                        in_channels=data_proc.get_num_channels(),
-                        device=gpu_id)
-        tabcnn.change_device()
+        if pre_trained_path is not None:
+            # Load the pre-trained model
+            tabcnn = torch.load(pre_trained_path, map_location='cpu')
+        else:
+            # Initialize a new instance of the model
+            if LOGISTIC:
+                tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                                profile=profile,
+                                in_channels=data_proc.get_num_channels(),
+                                matrix_path=matrix_path,
+                                silence_activations=True,
+                                lmbda=lmbda,
+                                device=gpu_id)
+            else:
+                tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                                profile=profile,
+                                in_channels=data_proc.get_num_channels(),
+                                device=gpu_id)
+        tabcnn.change_device(gpu_id)
         tabcnn.train()
 
         # Initialize a new optimizer for the model parameters

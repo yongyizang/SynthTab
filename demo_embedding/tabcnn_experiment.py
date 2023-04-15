@@ -2,7 +2,6 @@
 
 # My imports
 from amt_tools.datasets import GuitarSet
-from amt_tools.models import TabCNN
 from amt_tools.features import CQT
 from SynthTab import SynthTab
 from train import train
@@ -31,6 +30,17 @@ import os
 
 
 DEBUG = 0 # (0 - remote | 1 - desktop)
+RECURRENT = 0 # (0 - no recurrence | 1 - recurrence)
+LOGISTIC = 0 # (0 - softmax output layer | 1 - logistic output layer)
+
+if RECURRENT and LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogisticRecurrent as TabCNN
+elif RECURRENT:
+    from guitar_transcription_inhibition.models import TabCNNRecurrent as TabCNN
+elif LOGISTIC:
+    from guitar_transcription_inhibition.models import TabCNNLogistic as TabCNN
+else:
+    from amt_tools.models import TabCNN
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     SynthTab.dataset_name(),
@@ -70,6 +80,12 @@ def config():
     # Flag to augment audio during training
     augment = False
 
+    # Multiplier for inhibition loss if applicable
+    lmbda = 10
+
+    # Path to inhibition matrix if applicable
+    matrix_path = None
+
     # The random seed for this experiment
     seed = 0
 
@@ -91,7 +107,8 @@ def config():
 
 @ex.automain
 def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints,
-                        batch_size, gpu_id, reset_data, augment, seed, n_workers, root_dir):
+                        batch_size, gpu_id, reset_data, augment, lmbda, matrix_path,
+                        seed, n_workers, root_dir):
     # Seed everything with the same seed
     tools.seed_everything(seed)
 
@@ -191,10 +208,19 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     print('Initializing model...')
 
     # Initialize a new instance of the model
-    tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
-                    profile=profile,
-                    in_channels=data_proc.get_num_channels(),
-                    device=gpu_id)
+    if LOGISTIC:
+        tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                        profile=profile,
+                        in_channels=data_proc.get_num_channels(),
+                        matrix_path=matrix_path,
+                        silence_activations=True,
+                        lmbda=lmbda,
+                        device=gpu_id)
+    else:
+        tabcnn = TabCNN(dim_in=data_proc.get_feature_size(),
+                        profile=profile,
+                        in_channels=data_proc.get_num_channels(),
+                        device=gpu_id)
     tabcnn.change_device()
     tabcnn.train()
 
