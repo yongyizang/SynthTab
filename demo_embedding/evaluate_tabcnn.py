@@ -36,6 +36,8 @@ device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 
 # Load the model onto the specified device
 model = torch.load(model_path, map_location=device)
+model.change_device(device)
+model.eval()
 
 # Initialize the estimation pipeline (Tablature -> Stacked Multi Pitch -> Multi Pitch)
 validation_estimator = ComboEstimator([TablatureWrapper(profile=model.profile),
