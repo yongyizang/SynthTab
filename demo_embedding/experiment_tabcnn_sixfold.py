@@ -97,7 +97,7 @@ def config():
     if DEBUG:
         root_dir = os.path.join('.', 'generated', 'experiments', EX_NAME)
     else:
-        root_dir = os.path.join('/', 'home', 'frank', 'experiments', EX_NAME)
+        root_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'experiments', EX_NAME)
 
     # Make sure the directory exists
     os.makedirs(root_dir, exist_ok=True)
