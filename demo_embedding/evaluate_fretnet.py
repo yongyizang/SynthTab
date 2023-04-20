@@ -1,6 +1,7 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
+from IDMT_SMT_Guitar import IDMT_SMT_Guitar
 from amt_tools.datasets import GuitarSet
 from amt_tools.features import HCQT
 
@@ -59,8 +60,9 @@ data_proc = HCQT(sample_rate=sample_rate,
                  harmonics=[0.5, 1, 2, 3, 4, 5],
                  n_bins=144, bins_per_octave=36)
 
-# Default location of GuitarSet
+# Default location of datasets
 gset_base_dir = None
+idmt_base_dir = None
 
 # Keep all cached data/features here
 cache_dir = os.path.join('.', 'generated', 'data')
@@ -76,7 +78,23 @@ gset_test = GuitarSet(base_dir=gset_base_dir,
                       reset_data=reset_data,
                       save_loc=cache_dir)
 
-# Compute the average results on GuitarSet
-results = validate(model, gset_test, evaluator=validation_evaluator, estimator=validation_estimator)
+# Instantiate IDMT-SMT-Guitar for testing
+idmt_test = IDMT_SMT_Guitar(base_dir=idmt_base_dir,
+                            hop_length=hop_length,
+                            sample_rate=sample_rate,
+                            num_frames=None,
+                            data_proc=data_proc,
+                            profile=model.profile,
+                            store_data=False,
+                            reset_data=reset_data,
+                            save_loc=cache_dir)
 
-print(f'Results on GuitarSet: {results}')
+# Compute the average results on GuitarSet
+gset_results = validate(model, gset_test, evaluator=validation_evaluator, estimator=validation_estimator)
+
+print(f'Results on GuitarSet: {gset_results}')
+
+# Compute the average results on IDMT-SMT-Guitar
+idmt_results = validate(model, idmt_test, evaluator=validation_evaluator, estimator=validation_estimator)
+
+print(f'Results on IDMT-SMT-Guitar: {idmt_results}')
