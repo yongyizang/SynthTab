@@ -30,11 +30,55 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
     def get_tracks(self, split):
         """
-        TODO
+        Get the names of the tracks in the dataset.
+
+        Parameters
+        ----------
+        split : string
+          Name of dataset split
+
+        Returns
+        ----------
+        tracks : list of strings
+          Tracks pertaining to specified dataset split
         """
 
-        # TODO
-        tracks = None
+        # Define paths to all dataset section directories
+        isol_dir = os.path.join(self.base_dir, 'dataset1')
+        lick_dir = os.path.join(self.base_dir, 'dataset2')
+        piece_dir = os.path.join(self.base_dir, 'dataset3')
+
+        if split == 'isolated_clean':
+            # Start with all tracks under the lick directory
+            tracks = os.listdir(os.path.join(lick_dir, 'audio'))
+            # Keep only the clean note recordings
+            tracks = [os.path.join('dataset2', t) for t in tracks if 'fret_0-20' in t]
+            # Loop through all guitars
+            for dir in os.listdir(isol_dir):
+                # Construct a path to the audio for the guitar
+                audio_dir = os.path.join(isol_dir, dir, 'audio')
+                # Add all tracks under the audio directory
+                tracks += [os.path.join('dataset1', dir, t)
+                           for t in os.listdir(audio_dir)]
+        elif split == 'isolated_techniques':
+            # Start with all tracks under the lick directory
+            tracks = os.listdir(os.path.join(lick_dir, 'audio'))
+            # Remove licks and recordings of clean notes
+            tracks = [os.path.join('dataset2', t) for t in tracks
+                      if 'fret_0-20' not in t and 'Lick' not in t]
+        elif split == 'licks':
+            # Start with all tracks under the lick directory
+            tracks = os.listdir(os.path.join(lick_dir, 'audio'))
+            # Keep only the licks
+            tracks = [os.path.join('dataset2', t)
+                      for t in tracks if 'Lick' in t]
+        else:
+            # Obtain all tracks under the piece directory
+            tracks = [os.path.join('dataset3', t)
+                      for t in os.listdir(os.path.join(piece_dir, 'audio'))]
+
+        # Remove the .wav extension and sort the track names
+        tracks = sorted([os.path.splitext(t)[0] for t in tracks])
 
         return tracks
 
@@ -59,6 +103,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             times = self.data_proc.get_times(audio)
 
             # TODO - obtain annotations
+            xml_path = self.get_xml_path(track)
 
             # Add all relevant ground-truth to the dictionary
             data.update({tools.KEY_FS : fs,
@@ -90,9 +135,11 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
           Path to the specified track's audio
         """
 
+        # Break apart the track in order to reconstruct the path
+        section_dir, file_name = os.path.dirname(track), os.path.basename(track)
+
         # Get the path to the audio
-        # TODO
-        wav_path = None
+        wav_path = os.path.join(self.base_dir, section_dir, 'audio', f'{file_name}.wav')
 
         return wav_path
 
@@ -111,9 +158,11 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
           Path to the specified track's annotations
         """
 
-        # Get the path to the annotations
-        # TODO
-        xml_path = None
+        # Break apart the track in order to reconstruct the path
+        section_dir, file_name = os.path.dirname(track), os.path.basename(track)
+
+        # Get the path to the XML annotations
+        xml_path = os.path.join(self.base_dir, section_dir, 'annotation', f'{file_name}.xml')
 
         return xml_path
 
@@ -128,7 +177,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
           Different sections of dataset
         """
 
-        splits = ['isolated', 'licks', 'pieces']
+        splits = ['isolated_clean', 'isolated_techniques', 'licks', 'pieces']
 
         return splits
 
@@ -175,4 +224,4 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
         tools.unzip_and_remove(zip_path)
 
         # Move contents of unzipped directory to the base directory
-        tools.change_base_dir(save_dir, 'IDMT-SMT-GUITAR_V2')
+        tools.change_base_dir(save_dir, os.path.join(save_dir, 'IDMT-SMT-GUITAR_V2'))
