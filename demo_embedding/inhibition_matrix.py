@@ -27,7 +27,7 @@ def config():
     hop_length = 512
 
     # Number of frets supported
-    num_frets = 22
+    num_frets = 19
 
     # Flag to include silence associations
     silence_activations = True
@@ -58,7 +58,7 @@ def train_matrix(sample_rate, hop_length, num_frets, silence_activations, boost)
         cache_dir = os.path.join('/', 'media', 'finch', 'SSD2', 'precomputed')
 
         # Construct a path for saving the inhibition matrix
-        save_path = os.path.join('/', 'media', 'finch', 'SSD2', f'synthtab_train_p{boost}.npz')
+        save_path = os.path.join('/', 'media', 'finch', 'SSD2', 'matrices', f'synthtab_train_p{boost}.npz')
 
     # Create a CQT feature extraction module
     # spanning 8 octaves w/ 2 bins per semitone

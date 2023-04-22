@@ -34,7 +34,7 @@ def load_stacked_notes_xml(xml_path):
 
     if 'instrumentTuning' in xml['globalParameter']:
         # Obtain the open string tuning for the recording
-        open_tuning = [int(p) for p in xml['globalParameter']['instrumentTuning'].split()]
+        open_tuning = [int(p) for p in xml['globalParameter']['instrumentTuning'].replace(',', ' ').split()]
     else:
         # Assume standard tuning by default
         open_tuning = list(librosa.note_to_midi(tools.DEFAULT_GUITAR_TUNING))
