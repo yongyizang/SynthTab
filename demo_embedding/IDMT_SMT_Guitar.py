@@ -32,20 +32,31 @@ def load_stacked_notes_xml(xml_path):
         # Load the data from the XML file
         xml = xmltodict.parse(xml_file.read())['instrumentRecording']
 
-    # Obtain the open string pitch for the string
-    open_tuning = [int(p) for p in xml['globalParameter']['instrumentTuning'].split()]
+    if 'instrumentTuning' in xml['globalParameter']:
+        # Obtain the open string tuning for the recording
+        open_tuning = [int(p) for p in xml['globalParameter']['instrumentTuning'].split()]
+    else:
+        # Assume standard tuning by default
+        open_tuning = list(librosa.note_to_midi(tools.DEFAULT_GUITAR_TUNING))
 
     # Initialize a dictionary to hold the notes for each string
     stacked_notes = [tools.notes_to_stacked_notes([], [], p) for p in open_tuning]
     stacked_notes = {k : v for d in stacked_notes for k, v in d.items()}
 
-    # Loop through all annotated notes
-    for note in xml['transcription']['event']:
+    # Extract the notes from the XML
+    notes = xml['transcription']['event']
+
+    if isinstance(notes, dict):
+        # Add single note to list
+        notes = [notes]
+
+    # Loop through notes
+    for n in notes:
         # Extract relevant note attributes
-        string_idx = int(note['stringNumber']) - 1
-        pitch = int(note['pitch'])
-        onset = float(note['onsetSec'])
-        offset = float(note['offsetSec'])
+        string_idx = int(n['stringNumber']) - 1
+        pitch = int(n['pitch'])
+        onset = float(n['onsetSec'])
+        offset = float(n['offsetSec'])
 
         # Obtain the current collection of pitches and intervals
         pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
@@ -165,6 +176,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
                                                    norm=self.audio_norm)
 
             # We need the frame times for the tablature
+            # TODO - bug with track 'dataset2/AR_Lick7_KN'
             times = self.data_proc.get_times(audio)
 
             # Obtain the path to the track's annotations
@@ -238,6 +250,10 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
         # Break apart the track in order to reconstruct the path
         section_dir, file_name = os.path.dirname(track), os.path.basename(track)
+
+        if 'Lick11' in file_name:
+            # Correct apparent naming error
+            file_name += 'VSBHD'
 
         # Get the path to the XML annotations
         xml_path = os.path.join(self.base_dir, section_dir, 'annotation', f'{file_name}.xml')
