@@ -6,7 +6,62 @@ from amt_tools.datasets import TranscriptionDataset
 import amt_tools.tools as tools
 
 # Regular imports
+import numpy as np
+import xmltodict
+import librosa
 import os
+
+
+def load_stacked_notes_xml(xml_path):
+    """
+    Extract MIDI notes spread across strings into a dictionary
+    from an XML file following the IDMT-SMT-Guitar format.
+
+    Parameters
+    ----------
+    xml_path : string
+      Path to XML file to read
+
+    Returns
+    ----------
+    stacked_notes : dict
+      Dictionary containing (slice -> (pitches, intervals)) pairs
+    """
+
+    with open(xml_path) as xml_file:
+        # Load the data from the XML file
+        xml = xmltodict.parse(xml_file.read())['instrumentRecording']
+
+    # Obtain the open string pitch for the string
+    open_tuning = [int(p) for p in xml['globalParameter']['instrumentTuning'].split()]
+
+    # Initialize a dictionary to hold the notes for each string
+    stacked_notes = [tools.notes_to_stacked_notes([], [], p) for p in open_tuning]
+    stacked_notes = {k : v for d in stacked_notes for k, v in d.items()}
+
+    # Loop through all annotated notes
+    for note in xml['transcription']['event']:
+        # Extract relevant note attributes
+        string_idx = int(note['stringNumber']) - 1
+        pitch = int(note['pitch'])
+        onset = float(note['onsetSec'])
+        offset = float(note['offsetSec'])
+
+        # Obtain the current collection of pitches and intervals
+        pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
+
+        # Append the note pitch
+        pitches = np.append(pitches, pitch)
+        # Append the note interval
+        intervals = np.append(intervals, [[onset, offset]], axis=0)
+
+        # Re-insert the pitch-interval pairs into the stacked notes dictionary under the appropriate key
+        stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, open_tuning[string_idx]))
+
+    # Re-order keys starting from lowest string and switch to the corresponding note label
+    stacked_notes = {librosa.midi_to_note(i) : stacked_notes[i] for i in sorted(stacked_notes.keys())}
+
+    return stacked_notes
 
 
 class IDMT_SMT_Guitar(TranscriptionDataset):
@@ -84,7 +139,17 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
     def load(self, track):
         """
-        TODO
+        Load the ground-truth from memory or generate it from scratch.
+
+        Parameters
+        ----------
+        track : string
+          IDMT-SMT-Guitar track name
+
+        Returns
+        ----------
+        data : dict
+          Dictionary with ground-truth for the track
         """
 
         # Load the track data if it exists in memory, otherwise instantiate track data
@@ -92,7 +157,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
         # If the track data is being instantiated, it will not have the 'audio' key
         if not tools.query_dict(data, tools.KEY_AUDIO):
-            # Construct the path to the track's audio
+            # Obtain the path to the track's audio
             wav_path = self.get_wav_path(track)
             # Load and normalize the audio along with the sampling rate
             audio, fs = tools.load_normalize_audio(wav_path,
@@ -102,8 +167,20 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             # We need the frame times for the tablature
             times = self.data_proc.get_times(audio)
 
-            # TODO - obtain annotations
+            # Obtain the path to the track's annotations
             xml_path = self.get_xml_path(track)
+
+            # Load the notes by string from the XML file
+            stacked_notes = load_stacked_notes_xml(xml_path)
+
+            # Represent the string-wise notes as a stacked multi pitch array
+            stacked_multi_pitch = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes, times, self.profile)
+
+            # Convert the stacked multi pitch array into tablature
+            tablature = tools.stacked_multi_pitch_to_tablature(stacked_multi_pitch, self.profile)
+
+            # Convert the stacked multi pitch array into a single representation
+            multi_pitch = tools.stacked_multi_pitch_to_multi_pitch(stacked_multi_pitch)
 
             # Add all relevant ground-truth to the dictionary
             data.update({tools.KEY_FS : fs,
@@ -114,7 +191,8 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             if self.save_data:
                 # Get the appropriate path for saving the track data
                 gt_path = self.get_gt_dir(track)
-
+                # Create the (sub-directory) path if it doesn't exist
+                os.makedirs(os.path.dirname(gt_path), exist_ok=True)
                 # Save the data as a NumPy zip file
                 tools.save_dict_npz(gt_path, data)
 

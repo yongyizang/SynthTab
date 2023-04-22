@@ -6,3 +6,5 @@ amt-tools
 pedalboard
 git+https://github.com/cwitkowitz/guitar-transcription-with-inhibition@main
 git+https://github.com/cwitkowitz/guitar-transcription-continuous@main
+resampy
+xmltodict

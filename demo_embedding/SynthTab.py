@@ -36,7 +36,7 @@ def load_stacked_notes_jams(jams_path):
       Dictionary containing (slice -> (pitches, intervals)) pairs
     """
 
-    # Load the metadata from the jams file
+    # Load the data from the JAMS file
     jam = jams.load(jams_path)
 
     # Extract all midi note annotations
