@@ -64,7 +64,8 @@ def load_stacked_notes_xml(xml_path):
             # Print an appropriate warning to console
             warnings.warn('Note pitch not equal to nominal pitch of '
                           'corresponding string and fret.', RuntimeWarning)
-            print(f'File: {xml_path} | note {n}')
+            # Print offending file name
+            print(f'File: {os.path.basename(xml_path)} | note {n}')
 
         # Obtain the current collection of pitches and intervals
         pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
