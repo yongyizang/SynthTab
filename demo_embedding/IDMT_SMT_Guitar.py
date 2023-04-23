@@ -8,6 +8,7 @@ import amt_tools.tools as tools
 # Regular imports
 import numpy as np
 import xmltodict
+import warnings
 import librosa
 import os
 
@@ -54,15 +55,22 @@ def load_stacked_notes_xml(xml_path):
     for n in notes:
         # Extract relevant note attributes
         string_idx = int(n['stringNumber']) - 1
+        fret = int(n['fretNumber'])
         pitch = int(n['pitch'])
         onset = float(n['onsetSec'])
         offset = float(n['offsetSec'])
 
+        if pitch != open_tuning[string_idx] + fret:
+            # Print an appropriate warning to console
+            warnings.warn('Note pitch not equal to nominal pitch of '
+                          'corresponding string and fret.', RuntimeWarning)
+            print(f'File: {xml_path} | note {n}')
+
         # Obtain the current collection of pitches and intervals
         pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
 
-        # Append the note pitch
-        pitches = np.append(pitches, pitch)
+        # Append the (nominal) note pitch
+        pitches = np.append(pitches, open_tuning[string_idx] + fret)
         # Append the note interval
         intervals = np.append(intervals, [[onset, offset]], axis=0)
 
@@ -176,7 +184,6 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
                                                    norm=self.audio_norm)
 
             # We need the frame times for the tablature
-            # TODO - bug with track 'dataset2/AR_Lick7_KN'
             times = self.data_proc.get_times(audio)
 
             # Obtain the path to the track's annotations

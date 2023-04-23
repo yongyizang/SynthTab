@@ -96,7 +96,6 @@ gset_results = validate(model, gset_test, evaluator=validation_evaluator, estima
 print(f'Results on GuitarSet: {gset_results}')
 
 # Compute the average results on IDMT-SMT-Guitar
-# TODO - any ground-truth notes beyond 19th fret???
 idmt_results = validate(model, idmt_test, evaluator=validation_evaluator, estimator=validation_estimator)
 
 print(f'Results on IDMT-SMT-Guitar: {idmt_results}')

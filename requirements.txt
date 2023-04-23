@@ -2,7 +2,7 @@ torchaudio
 torch
 pyguitarpro
 dawdreamer
-amt-tools
+amt-tools>=0.3.1
 pedalboard
 git+https://github.com/cwitkowitz/guitar-transcription-with-inhibition@main
 git+https://github.com/cwitkowitz/guitar-transcription-continuous@main
