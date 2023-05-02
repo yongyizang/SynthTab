@@ -9,6 +9,20 @@ from amt_tools.models import OnlineLanguageModel
 import torch
 
 
+class TranscriptionModelParallel(torch.nn.DataParallel):
+    """
+    A custom nn.DataParallel module to retain method names.
+    """
+
+    def __getattr__(self, name):
+        try:
+            # Check DataParallel
+            return super().__getattr__(name)
+        except AttributeError:
+            # Check the wrapped model
+            return getattr(self.module, name)
+
+
 class FretNetRecurrent(FretNet):
     """
     Implements FretNet with a recurrent layer inserted at the front of the tablature head.

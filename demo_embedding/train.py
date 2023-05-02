@@ -1,6 +1,7 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
+from models import TranscriptionModelParallel
 from amt_tools.evaluate import validate, append_results, average_results, log_results
 from amt_tools import tools
 
@@ -60,7 +61,7 @@ def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.',
     # Make sure the model is in training mode
     model.train()
 
-    for epoch in tqdm(range(start_iter, epochs)):
+    for _ in tqdm(range(start_iter, epochs)):
         # Collection of losses for each batch in the loop
         train_loss = dict()
         # Loop through the dataset
@@ -87,8 +88,14 @@ def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.',
             model.iter += 1
 
             if model.iter % checkpoints == 0:
+                # Construct a path for the model checkpoint
+                model_path = os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}')
                 # Save the model checkpoint
-                torch.save(model, os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}'))
+                if isinstance(model, TranscriptionModelParallel):
+                    torch.save(model.module, model_path)
+                else:
+                    torch.save(model, model_path)
+
                 # Save the optimizer state at the checkpoint
                 torch.save(optimizer.state_dict(), os.path.join(log_dir, f'{tools.PYT_STATE}-{model.iter}.{tools.PYT_EXT}'))
 
@@ -105,8 +112,14 @@ def train(model, train_loader, optimizer, epochs, checkpoints=0, log_dir='.',
             # Perform a learning rate scheduler step
             scheduler.step()
 
+    # Construct a path for the model checkpoint
+    model_path = os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}')
     # Save the final model
-    torch.save(model, os.path.join(log_dir, f'{tools.PYT_MODEL}-{model.iter}.{tools.PYT_EXT}'))
+    if isinstance(model, TranscriptionModelParallel):
+        torch.save(model.module, model_path)
+    else:
+        torch.save(model, model_path)
+
     # Save the final optimizer state
     torch.save(optimizer.state_dict(), os.path.join(log_dir, f'{tools.PYT_STATE}-{model.iter}.{tools.PYT_EXT}'))
 

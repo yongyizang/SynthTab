@@ -1,6 +1,7 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
 # My imports
+from models import TranscriptionModelParallel
 from amt_tools.datasets import GuitarSet
 from amt_tools.features import HCQT
 from SynthTab import SynthTab
@@ -69,8 +70,8 @@ def config():
     # The fixed or initial learning rate
     learning_rate = 5E-4
 
-    # The id of the gpu to use, if available
-    gpu_id = 0
+    # IDs of the GPUs to use, if available
+    gpu_ids = [0] if DEBUG else [0, 1]
 
     # Flag to re-acquire ground-truth data and re-calculate
     # features (useful if testing out different parameters)
@@ -112,7 +113,7 @@ def config():
 
 @ex.automain
 def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints, batch_size,
-                        learning_rate, gpu_id, reset_data, augment, model_complexity, lmbda,
+                        learning_rate, gpu_ids, reset_data, augment, model_complexity, lmbda,
                         matrix_path, estimate_onsets, seed, n_workers, root_dir):
     # Seed everything with the same seed
     tools.seed_everything(seed)
@@ -224,7 +225,12 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                       silence_activations=True,
                       lmbda=lmbda,
                       estimate_onsets=estimate_onsets,
-                      device=gpu_id)
+                      device=gpu_ids[0])
+
+    if len(gpu_ids) > 1:
+        # Wrap the model for multi-GPU usage
+        fretnet = TranscriptionModelParallel(fretnet, device_ids=gpu_ids)
+
     fretnet.change_device()
     fretnet.train()
 
