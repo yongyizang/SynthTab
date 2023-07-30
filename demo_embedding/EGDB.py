@@ -7,9 +7,8 @@ import amt_tools.tools as tools
 
 # Regular imports
 import numpy as np
-import pretty_midi
-import warnings
 import librosa
+import mido
 import os
 
 
@@ -36,24 +35,57 @@ def load_stacked_notes_midi(midi_path):
     stacked_notes = [tools.notes_to_stacked_notes([], [], p) for p in open_tuning]
     stacked_notes = {k : v for d in stacked_notes for k, v in d.items()}
 
-    # Extract the notes from the MIDI file
-    annotations = pretty_midi.PrettyMIDI(midi_path)
+    # Open the MIDI file
+    midi = mido.MidiFile(midi_path)
 
-    # Loop through all strings with annotations
-    for i, string in enumerate(annotations.instruments):
-        if string.name.isdigit():
-            # Determine the appropriate index
-            string_idx = 6 - int(string.name)
-        else:
-            print(midi_path)
-            # Address "6i" bug
-            string_idx = 5 - i
+    # Initialize a counter for the time
+    time = 0
 
-        # Determine relevant attributes of each note
-        onsets, offsets, pitches = np.array([(n.start, n.end, n.pitch) for n in string.notes]).transpose()
+    # Initialize an empty list to store MIDI events
+    events = []
 
-        # Combine onsets and offsets to obtain note intervals
-        intervals = np.concatenate(([onsets], [offsets])).T
+    # Parse all MIDI messages
+    for message in midi:
+        # Increment the time
+        time += message.time
+
+        # Check if message is a note event (NOTE_ON or NOTE_OFF)
+        if 'note' in message.type:
+            # Determine corresponding string index
+            string_idx = 5 - message.channel
+            # MIDI offsets can be either NOTE_OFF events or NOTE_ON with zero velocity
+            onset = message.velocity > 0 if message.type == 'note_on' else False
+
+            # Create a new event detailing the note
+            event = dict(time=time,
+                         pitch=message.note,
+                         onset=onset,
+                         string=string_idx)
+            # Add note event to MIDI event list
+            events.append(event)
+
+    # Loop through all tracked MIDI events
+    for i, event in enumerate(events):
+        # Ignore note offset events
+        if not event['onset']:
+            continue
+
+        # Extract note attributes
+        pitch = event['pitch']
+        onset = event['time']
+        string_idx = event['string']
+
+        # Determine where the corresponding offset occurs by finding the next note event
+        # with the same string, clipping at the final frame if no correspondence is found
+        offset = next(n for n in events[i + 1:] if n['string'] == event['string'] or n is events[-1])['time']
+
+        # Obtain the current collection of pitches and intervals
+        pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
+
+        # Append the (nominal) note pitch
+        pitches = np.append(pitches, pitch)
+        # Append the note interval
+        intervals = np.append(intervals, [[onset, offset]], axis=0)
 
         # Re-insert the pitch-interval pairs into the stacked notes dictionary under the appropriate key
         stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, open_tuning[string_idx]))
