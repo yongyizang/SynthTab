@@ -8,6 +8,7 @@ import amt_tools.tools as tools
 # Regular imports
 import numpy as np
 import librosa
+import gdown
 import mido
 import os
 
@@ -268,19 +269,11 @@ class EGDB(TranscriptionDataset):
         # Create top-level directory
         TranscriptionDataset.download(save_dir)
 
-        # URL pointing to the zip file containing data for all tracks
-        #url = 'https://drive.google.com/drive/folders/1h9DrB4dk4QstgjNaHh7lL7IMeKdYw82_?usp=share_link'
+        # URL pointing to the top-level Google Drive folder
+        url = 'https://drive.google.com/drive/folders/1h9DrB4dk4QstgjNaHh7lL7IMeKdYw82_'
 
-        # Construct a path for saving the file
-        #zip_path = os.path.join(save_dir, os.path.basename(url))
+        # Download the entire Google Drive folder
+        gdown.download_folder(url, output=save_dir, quiet=True, use_cookies=False, remaining_ok=True)
 
-        # Download the zip file
-        #tools.stream_url_resource(url, zip_path, 1000 * 1024)
-
-        # Unzip the downloaded file and remove it
-        #tools.unzip_and_remove(zip_path)
-
-        # Move contents of unzipped directory to the base directory
-        #tools.change_base_dir(save_dir, os.path.join(save_dir, 'IDMT-SMT-GUITAR_V2'))
-
-        return NotImplementedError
+        # Move contents of downloaded folder to the base directory
+        tools.change_base_dir(save_dir, os.path.join(save_dir, 'EGDB'))
