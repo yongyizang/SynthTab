@@ -42,6 +42,16 @@ model = torch.load(model_path, map_location=device)
 model.change_device(device)
 model.eval()
 
+# Initialize the estimation pipeline (Tablature -> Stacked Multi Pitch -> Multi Pitch)
+validation_estimator = ComboEstimator([TablatureWrapper(profile=model.profile),
+                                       StackedMultiPitchCollapser(profile=model.profile)])
+
+# Initialize the evaluation pipeline (Loss | Multi Pitch | Tablature)
+validation_evaluator = ComboEvaluator([LossWrapper(),
+                                       MultipitchEvaluator(),
+                                       TablatureEvaluator(profile=model.profile),
+                                       SoftmaxAccuracy()])
+
 # Create an HCQT feature extraction module comprising
 # the first five harmonics and a sub-harmonic, where each
 # harmonic transform spans 4 octaves w/ 3 bins per semitone
@@ -94,43 +104,21 @@ egdb_test = EGDB(base_dir=egdb_base_dir,
                  reset_data=reset_data,
                  save_loc=cache_dir)
 
-# Initialize the estimation pipeline (Tablature -> Stacked Multi Pitch -> Multi Pitch)
-validation_estimator = ComboEstimator([TablatureWrapper(profile=model.profile),
-                                       StackedMultiPitchCollapser(profile=model.profile)])
-
-# Initialize the evaluation pipeline (Loss | Multi Pitch | Tablature)
-validation_evaluator = ComboEvaluator([LossWrapper(),
-                                       MultipitchEvaluator(),
-                                       TablatureEvaluator(profile=model.profile),
-                                       SoftmaxAccuracy()])
-
 # Compute the average results on GuitarSet
 gset_results = validate(model, gset_test, evaluator=validation_evaluator, estimator=validation_estimator)
 
 print(f'Results on GuitarSet: {gset_results}')
 
-# Need to intialize each time if you only want results on one dataset
-validation_estimator = ComboEstimator([TablatureWrapper(profile=model.profile),
-                                       StackedMultiPitchCollapser(profile=model.profile)])
-
-validation_evaluator = ComboEvaluator([LossWrapper(),
-                                       MultipitchEvaluator(),
-                                       TablatureEvaluator(profile=model.profile),
-                                       SoftmaxAccuracy()])
+# Reset the evaluator
+validation_evaluator.reset_results()
 
 # Compute the average results on IDMT-SMT-Guitar
 idmt_results = validate(model, idmt_test, evaluator=validation_evaluator, estimator=validation_estimator)
 
 print(f'Results on IDMT-SMT-Guitar: {idmt_results}')
 
-# Need to intialize each time if you only want results on one dataset
-validation_estimator = ComboEstimator([TablatureWrapper(profile=model.profile),
-                                       StackedMultiPitchCollapser(profile=model.profile)])
-
-validation_evaluator = ComboEvaluator([LossWrapper(),
-                                       MultipitchEvaluator(),
-                                       TablatureEvaluator(profile=model.profile),
-                                       SoftmaxAccuracy()])
+# Reset the evaluator
+validation_evaluator.reset_results()
 
 # Compute the average results on EGDB
 egdb_results = validate(model, egdb_test, evaluator=validation_evaluator, estimator=validation_estimator)

@@ -106,10 +106,16 @@ gset_results = validate(model, gset_test, evaluator=validation_evaluator, estima
 
 print(f'Results on GuitarSet: {gset_results}')
 
+# Reset the evaluator
+validation_evaluator.reset_results()
+
 # Compute the average results on IDMT-SMT-Guitar
 idmt_results = validate(model, idmt_test, evaluator=validation_evaluator, estimator=validation_estimator)
 
 print(f'Results on IDMT-SMT-Guitar: {idmt_results}')
+
+# Reset the evaluator
+validation_evaluator.reset_results()
 
 # Compute the average results on EGDB
 egdb_results = validate(model, egdb_test, evaluator=validation_evaluator, estimator=validation_estimator)
