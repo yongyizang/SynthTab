@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
+
 import json, os, sys, shutil, random
+
 import numpy as np
 from numpy import size
 import mido as Mido
@@ -271,7 +274,8 @@ def generate_modulation(notes, curve_sample_interval=100, max_bend=8, max_bend_v
 if __name__ == "__main__":
     targetDir = sys.argv[1]
     outputDir = sys.argv[2]
-    keyswitch_config = json.loads(sys.argv[3])
+    with open(sys.argv[3], 'r') as f:
+        keyswitch_config = json.load(f)
     
     # filter out if args are not 3
     if len(sys.argv) != 4:
@@ -287,8 +291,10 @@ if __name__ == "__main__":
         for file in files:
             if file.endswith(".jams"):
                 allJams.append(os.path.join(root, file))
+
     for jam in tqdm(allJams, desc="Converting JAMS to MIDI"):
-        output_dir = outputDir + jam.split("/")[-1].split(".jams")[0].strip() + "- midi"
+        outdir_name = jam.split("/")[-2].replace('__', '_').strip('_') + '__' + jam.split("/")[-1].split(".jams")[0].strip().strip('_') + "__midi"
+        output_dir = os.path.join(outputDir, outdir_name)
         # copy the jam file to the output directory.
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)

@@ -152,6 +152,8 @@ if __name__ == '__main__':
     # Search the specified directory for valid GuitarPro files
     tracked_files, tracked_dirs = get_valid_files(gpro_dir)
 
+    fw = open('error_files.txt', 'w')
+
     # Loop through the tracked GuitarPro files
     for gpro_file, dir in zip(tracked_files, tracked_dirs):
         print(f'Processing track \'{gpro_file}\'...')
@@ -161,4 +163,10 @@ if __name__ == '__main__':
         jams_dir = os.path.join(dir, gpro_file.replace('.', ' - '))
 
         # Perform the conversion
-        write_jams_guitarpro(gpro_path, jams_dir)
+        try:
+            write_jams_guitarpro(gpro_path, jams_dir)
+        except:
+            print(f'error_track: \'{gpro_file}\'...')
+            fw.write(gpro_path + '\n')
+
+    fw.close()
