@@ -1,4 +1,5 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
+import pdb
 
 # My imports
 from amt_tools.datasets import TranscriptionDataset
@@ -41,6 +42,7 @@ def load_stacked_notes_xml(xml_path):
         open_tuning = list(librosa.note_to_midi(tools.DEFAULT_GUITAR_TUNING))
 
     # Initialize a dictionary to hold the notes for each string
+    pdb.set_trace()
     stacked_notes = [tools.notes_to_stacked_notes([], [], p) for p in open_tuning]
     stacked_notes = {k : v for d in stacked_notes for k, v in d.items()}
 
@@ -171,7 +173,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
         data : dict
           Dictionary with ground-truth for the track
         """
-
+        pdb.set_trace()
         # Load the track data if it exists in memory, otherwise instantiate track data
         data = super().load(track)
 
@@ -189,6 +191,8 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
             # Obtain the path to the track's annotations
             xml_path = self.get_xml_path(track)
+
+
 
             # Load the notes by string from the XML file
             stacked_notes = load_stacked_notes_xml(xml_path)
@@ -327,3 +331,8 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
 
         # Move contents of unzipped directory to the base directory
         tools.change_base_dir(save_dir, os.path.join(save_dir, 'IDMT-SMT-GUITAR_V2'))
+
+
+if __name__ == '__main__':
+    tmp = IDMT_SMT_Guitar(base_dir='/Users/yizhong/Documents/gits/guitar-tab/IDMT-SMT-GUITAR-dataset')
+    # IDMT_SMT_Guitar.download('/Users/yizhong/Documents/gits/guitar-tab/IDMT-SMT-GUITAR-dataset')

@@ -1,3 +1,4 @@
+import pdb
 from re import X
 import dawdreamer as daw
 import numpy
@@ -20,7 +21,7 @@ SYNTH_PLUGIN = '/Library/Audio/Plug-Ins/VST/AGL.vst'
 STRINGS = 6
 
 
-def render_audio(subfolders, state, path_indir, path_outdir, extract_pitch=False):
+def render_audio(subfolders, state, path_indir, path_outdir, extract_pitch=False, mono=False):
 
     tag = "luthier_" + state
 
@@ -63,8 +64,21 @@ def render_audio(subfolders, state, path_indir, path_outdir, extract_pitch=False
                     audio = engine.get_audio()
 
                     if extract_pitch:
-                        f0, voiced_flag, voiced_probs, = librosa.pyin(audio.T[:, 0], fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), sr=SAMPLE_RATE)
-                        out_pitchf = os.path.join(outdir, tag + "_string_" + str(string))
+                        if mono:
+                            f0 = librosa.yin(audio[0],
+                                             fmin=librosa.note_to_hz('C2'),
+                                             fmax=librosa.note_to_hz('C7'),
+                                             sr=SAMPLE_RATE)
+                        else:
+                            f0 = librosa.yin(audio,
+                                             fmin=librosa.note_to_hz('C2'),
+                                             fmax=librosa.note_to_hz('C7'),
+                                             sr=SAMPLE_RATE)
+                            #
+                        # non voice will be fmax for yin, update to 0
+                        f0[f0 == 2100.] = 0.0
+
+                        out_pitchf = os.path.join(outdir, tag + "_string_" + str(string) + "_pitch")
                         numpy.save(out_pitchf, f0)
                     audios.append(audio)
 
@@ -73,12 +87,13 @@ def render_audio(subfolders, state, path_indir, path_outdir, extract_pitch=False
             for i in range(len(audios)):
                 audio_mix[:, :audios[i].shape[1]] += audios[i]
             audio_mix = audio_mix / len(audios)
+
             if np.max(np.abs(audio_mix)) > 0.:
                 audio_mix = audio_mix * 0.99 / np.max(np.abs(audio_mix))
             # save the audio
             # wavfile.write(path_outdir + "/" + song + "/" + tag + ".wav", SAMPLE_RATE, audio_mix.T)
             # as flac
-            sf.write(outsong, audio_mix.T, SAMPLE_RATE, subtype='PCM_24')
+            sf.write(outsong, audio_mix[0].T, SAMPLE_RATE, subtype='PCM_24')
         except Exception as e:
             with open("error.txt", "w") as f:
                 f.write(song + " " + str(e) + "\n")
@@ -91,7 +106,7 @@ if __name__ == '__main__':
     # get the first argument
     state = sys.argv[1]
 
-    path_indir = "../JAMS_to_MIDI/allMIDIs"
+    path_indir = "../JAMS_to_MIDI/tmp"
     path_outdir = "./test"
     # get all subfolders
     subfolders = next(os.walk(path_indir))[1]
@@ -114,6 +129,8 @@ if __name__ == '__main__':
     num_acoustic_folders = len(acoustic_folders)
     print('num acoustic_folders:', num_acoustic_folders)
 
+    render_audio(subfolders, state, path_indir, path_outdir, extract_pitch=True, mono=True)
+    exit()
 
     num_workers = cpu_cores
     print(num_workers)
