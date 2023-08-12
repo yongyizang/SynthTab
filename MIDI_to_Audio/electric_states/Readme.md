@@ -10,5 +10,14 @@ GUITAR2ABBR = {'lespaul': 'LP', 'peregrine': 'PF', 'stratocaster': 'SC', 'semiho
 
 
 ## 2. render acoustic or electric:
- 
-follows run_acoustic.sh or run_electric_clean.sh
+
+2.1 set indir and outdir in render_acoustic.py or render_electric_clean.py
+
+2.2 follows run_acoustic.sh or run_electric_clean.sh
+
+
+## 3. after rendering
+
+python3 get_allfpath.py {outdir} 
+
+to gen all the path for generated files ( one txt for audio, another txt for f0 )
