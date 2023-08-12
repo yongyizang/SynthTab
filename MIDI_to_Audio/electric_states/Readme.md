@@ -1,4 +1,4 @@
-1. set states for a timber
+#1. set states for a timber
 
 e.g. python3 set_state.py martin_pick_nonoise_mono_body
 
@@ -9,5 +9,6 @@ GUITAR2ABBR = {'lespaul': 'LP', 'peregrine': 'PF', 'stratocaster': 'SC', 'semiho
 )
 
 
-2. render acoustic or electric:
+#2. render acoustic or electric:
+ 
 follows run_acoustic.sh or run_electric_clean.sh
