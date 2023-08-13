@@ -108,11 +108,12 @@ def write_jams_guitarpro(gpro_path, jams_dir):
             # Write the note predictions to a JAMS object
             jam = note_tracker.write_jams()
 
-            # Create a new annotation for tempo changes
-            tempo_data = jams.Annotation(namespace='tempo')
+            # Add the total duration to the top-level file meta-data
+            jam.file_metadata.duration = tempo_changes[-1][0] - tempo_changes[0][0]
 
-            # Keep track of the cumulative duration of each tempo
-            total_duration = 0
+            # Write track meta-data to the JAMS object
+            jam.sandbox.update(instrument=gpro_track.channel.instrument,
+                               fret_count=gpro_track.fretCount)
 
             # Loop through tempo changes
             for i in range(1, len(tempo_changes)):
@@ -120,26 +121,23 @@ def write_jams_guitarpro(gpro_path, jams_dir):
                 tick, tempo = tempo_changes[i - 1]
                 # Compute the amount of ticks for which tempo is valid
                 duration = tempo_changes[i][0] - tempo_changes[i - 1][0]
+
+                # Slice the top-level jam to the duration of the tempo
+                tempo_jam = jam.slice(tick, tick + duration)
+
+                # Create a new annotation for tempo changes
+                tempo_data = jams.Annotation(namespace='tempo')
                 # Add an entry for the tempo change to the JAMS data
                 tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
-                # Accumulate the duration of the tempo
-                total_duration += duration
 
-            # Add the annotation to the JAMS object
-            jam.annotations.append(tempo_data)
+                # Add the annotation to the JAMS object
+                tempo_jam.annotations.append(tempo_data)
 
-            # Add the total duration to the top-level file meta-data
-            jam.file_metadata.duration = total_duration
+                # Construct a path for saving the JAMS data for the current tempo
+                jams_path = os.path.join(jams_dir, f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}_{i}.jams')
 
-            # Write track meta-data to the JAMS object
-            jam.sandbox.update(instrument=gpro_track.channel.instrument,
-                               fret_count=gpro_track.fretCount)
-
-            # Construct a path for saving the JAMS data
-            jams_path = os.path.join(jams_dir, f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}.jams')
-
-            # Save as a JAMS file
-            jam.save(jams_path)
+                # Save as a JAMS file
+                tempo_jam.save(jams_path)
 
 
 if __name__ == '__main__':
