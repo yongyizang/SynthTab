@@ -1,8 +1,9 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
-from guitarpro import NoteType, Duration
+from guitarpro import NoteType, Duration, Velocities
 from copy import deepcopy
 
+import warnings
 import jams
 
 
@@ -138,8 +139,7 @@ class Note(object):
             self.setAttrEffect(grace={'fret' : effect.grace.fret,
                                       'transition' : effect.grace.transition.name,
                                       'velocity' : effect.grace.velocity,
-                                      'duration' : effect.grace.durationTime, # TODO - this function appears to
-                                                                              #        have a bug, check back later
+                                      'duration' : effect.grace.durationTime,
                                       'on_beat' : effect.grace.isOnBeat,
                                       'dead' : effect.grace.isDead})
 
@@ -256,6 +256,9 @@ class NoteTracker(object):
         # Extract the string, fret, and velocity of the note
         string_idx, fret, velocity = gpro_note.string, gpro_note.value, gpro_note.velocity
 
+        # Make sure a velocity is set for the note
+        velocity = max(velocity, Velocities.minVelocity)
+
         # Scale the duration by the duration percentage
         duration = round(duration * gpro_note.durationPercent)
 
@@ -277,11 +280,12 @@ class NoteTracker(object):
                              if len(self.gpro_notes[string_idx]) else None
             # Determine if the last note should be extended
             if last_gpro_note is not None:
-                # TODO - carry over any effects from previous note (e.g. bends)
                 # Determine how much to extend the note
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
                 last_gpro_note.set_duration(new_duration)
+            else:
+                warnings.warn('No last note for tie...', RuntimeWarning)
         else:
             # Add the new note to the dictionary under the respective string
             self.gpro_notes[string_idx].append(note)
