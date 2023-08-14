@@ -115,29 +115,53 @@ def write_jams_guitarpro(gpro_path, jams_dir):
             jam.sandbox.update(instrument=gpro_track.channel.instrument,
                                fret_count=gpro_track.fretCount)
 
+            # Create a label for the track based on the encoded instrument
+            track_label = f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}'
+
+            # Create a new annotation for all tempo changes
+            all_tempo_data = jams.Annotation(namespace='tempo')
+
             # Loop through tempo changes
             for i in range(1, len(tempo_changes)):
                 # Extract the tempo change information
                 tick, tempo = tempo_changes[i - 1]
                 # Compute the amount of ticks for which tempo is valid
                 duration = tempo_changes[i][0] - tempo_changes[i - 1][0]
+                # Add the tempo change to the top-level JAMS data
+                all_tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
 
-                # Slice the top-level jam to the duration of the tempo
-                tempo_jam = jam.slice(tick, tick + duration)
+                if len(tempo_changes) > 2:
+                    # Slice the top-level jam to the duration of the tempo
+                    jam_slice = jam.slice(tick, tick + duration)
 
-                # Create a new annotation for tempo changes
-                tempo_data = jams.Annotation(namespace='tempo')
-                # Add an entry for the tempo change to the JAMS data
-                tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
+                    # Create a new annotation for the tempo of the slice
+                    tempo_data = jams.Annotation(namespace='tempo')
+                    # Add an entry denoting the tempo to the JAMS slice
+                    tempo_data.append(time=0, value=tempo, duration=duration, confidence=1.0)
 
-                # Add the annotation to the JAMS object
-                tempo_jam.annotations.append(tempo_data)
+                    # Add the annotation to the JAMS object
+                    jam_slice.annotations.append(tempo_data)
 
-                # Construct a path for saving the JAMS data for the current tempo
-                jams_path = os.path.join(jams_dir, f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}_{i}.jams')
+                    # Create a new directory for JAMS annotations sliced by tempo
+                    tempo_split_dir = os.path.join(jams_dir, f'{track_label} - tempo_slices')
 
-                # Save as a JAMS file
-                tempo_jam.save(jams_path)
+                    # Make sure the directory for the slices exists
+                    os.makedirs(tempo_split_dir, exist_ok=True)
+
+                    # Construct a path for saving the JAMS data for the current tempo
+                    tempo_split_path = os.path.join(tempo_split_dir, f'{i}.jams')
+
+                    # Save the sliced JAMS data
+                    jam_slice.save(tempo_split_path)
+
+            # Add all tempo changes to the top-level JAMS data
+            jam.annotations.append(all_tempo_data)
+
+            # Construct a path for saving the top-level JAMS data
+            jams_path = os.path.join(jams_dir, f'{track_label}.jams')
+
+            # Save the JAMS data
+            jam.save(jams_path)
 
 
 if __name__ == '__main__':
