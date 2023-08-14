@@ -482,7 +482,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         # Add the measure ticks to the total ticks
         total_ticks += measure_ticks[0]
         # Check if all ticks were counted
-        if measure_ticks[0] != measure.length:
+        if measure_ticks[0] < measure.length:
             # Compute the number of ticks missing
             remaining_ticks = measure.length - measure_ticks[0]
             # Add the remaining measure ticks
