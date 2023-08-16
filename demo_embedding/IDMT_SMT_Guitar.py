@@ -1,5 +1,4 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
-import pdb
 
 # My imports
 from amt_tools.datasets import TranscriptionDataset
@@ -14,7 +13,7 @@ import librosa
 import os
 
 
-def load_stacked_notes_xml(xml_path):
+def load_stacked_notes_xml(xml_path, absolute=False):
     """
     Extract MIDI notes spread across strings into a dictionary
     from an XML file following the IDMT-SMT-Guitar format.
@@ -23,6 +22,8 @@ def load_stacked_notes_xml(xml_path):
     ----------
     xml_path : string
       Path to XML file to read
+    absolute : bool
+      Whether to use absolute pitch annotation instead of pitch implied by string and fret
 
     Returns
     ----------
@@ -42,7 +43,6 @@ def load_stacked_notes_xml(xml_path):
         open_tuning = list(librosa.note_to_midi(tools.DEFAULT_GUITAR_TUNING))
 
     # Initialize a dictionary to hold the notes for each string
-    pdb.set_trace()
     stacked_notes = [tools.notes_to_stacked_notes([], [], p) for p in open_tuning]
     stacked_notes = {k : v for d in stacked_notes for k, v in d.items()}
 
@@ -72,8 +72,13 @@ def load_stacked_notes_xml(xml_path):
         # Obtain the current collection of pitches and intervals
         pitches, intervals = stacked_notes.pop(open_tuning[string_idx])
 
-        # Append the (nominal) note pitch
-        pitches = np.append(pitches, open_tuning[string_idx] + fret)
+        if absolute:
+            # Append the absolute note pitch
+            pitches = np.append(pitches, pitch)
+        else:
+            # Append the nominal note pitch of the string and fret
+            pitches = np.append(pitches, open_tuning[string_idx] + fret)
+
         # Append the note interval
         intervals = np.append(intervals, [[onset, offset]], axis=0)
 
@@ -173,7 +178,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
         data : dict
           Dictionary with ground-truth for the track
         """
-        pdb.set_trace()
+
         # Load the track data if it exists in memory, otherwise instantiate track data
         data = super().load(track)
 
@@ -192,19 +197,23 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             # Obtain the path to the track's annotations
             xml_path = self.get_xml_path(track)
 
+            # Load the notes by string from the XML file (nominal)
+            stacked_notes_tab = load_stacked_notes_xml(xml_path)
 
-
-            # Load the notes by string from the XML file
-            stacked_notes = load_stacked_notes_xml(xml_path)
-
-            # Represent the string-wise notes as a stacked multi pitch array
-            stacked_multi_pitch = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes, times, self.profile)
+            # Represent the string-wise notes with nominal pitches as a stacked multi pitch array
+            stacked_multi_pitch_tab = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes_tab, times, self.profile)
 
             # Convert the stacked multi pitch array into tablature
-            tablature = tools.stacked_multi_pitch_to_tablature(stacked_multi_pitch, self.profile)
+            tablature = tools.stacked_multi_pitch_to_tablature(stacked_multi_pitch_tab, self.profile)
+
+            # Load the notes by string from the XML file (absolute_
+            stacked_notes_mpe = load_stacked_notes_xml(xml_path, True)
+
+            # Represent the string-wise notes with absolute pitches as a stacked multi pitch array
+            stacked_multi_pitch_mpe = tools.stacked_notes_to_stacked_multi_pitch(stacked_notes_mpe, times, self.profile)
 
             # Convert the stacked multi pitch array into a single representation
-            multi_pitch = tools.stacked_multi_pitch_to_multi_pitch(stacked_multi_pitch)
+            multi_pitch = tools.stacked_multi_pitch_to_multi_pitch(stacked_multi_pitch_mpe)
 
             # Add all relevant ground-truth to the dictionary
             data.update({tools.KEY_FS : fs,
