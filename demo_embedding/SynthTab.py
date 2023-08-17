@@ -39,42 +39,47 @@ def load_stacked_notes_jams(jams_path):
     # Load the data from the JAMS file
     jam = jams.load(jams_path)
 
-    # Extract all midi note annotations
-    note_data_slices = jam.annotations['note_tab']
-
-    # Extract the tempo from the annotation
-    # TODO - dealing with changing tempos
-    tempo = jam.annotations['tempo'].pop().data[0].value
+    # Extract the tempo changes from the annotation
+    all_tempos = jam.annotations['tempo'][0].data
 
     # Initialize a dictionary to hold the notes
     stacked_notes = dict()
 
-    # Loop through the slices of the stack
-    for slice_notes in note_data_slices:
-        # Initialize lists to hold the pitches and intervals
-        pitches, intervals = list(), list()
+    for tempo_change in all_tempos:
+        # Extract relevant tempo information
+        tempo = tempo_change.value
+        onset = tempo_change.time
+        duration = tempo_change.duration
 
-        # Loop through the notes pertaining to this slice
-        for note in slice_notes:
-            # Append the note's fret
-            pitches.append(note.value['fret'])
-            # Append the note's onset and offset (in ticks)
-            intervals.append([note.time, note.time + note.duration])
+        # Extract all midi note annotations within the boundaries of the tempo
+        # TODO - this could cause problems if tempo changes during an active note
+        note_data_slices = jam.trim(onset, onset + duration).annotations['note_tab']
 
-        # Convert the pitch and interval lists to arrays
-        pitches, intervals = np.array(pitches), np.array(intervals)
+        # Loop through each string's set of notes
+        for slice_notes in note_data_slices:
+            # Extract the open string pitch for the string
+            string_pitch = slice_notes.sandbox['open_tuning']
 
-        # Extract the open string pitch for the string
-        string_pitch = slice_notes.sandbox['open_tuning']
+            if string_pitch in stacked_notes:
+                # Obtain the current collection of pitches and intervals
+                pitches, intervals = stacked_notes.pop(string_pitch)
+            else:
+                # Initialize arrays to hold the pitches and intervals
+                pitches, intervals = np.empty(0), np.empty((0, 2))
 
-        # Add open-string tuning to obtain pitches
-        pitches += string_pitch
+            # Loop through each note
+            for note in slice_notes:
+                # Append the note's nominal pitch value
+                pitches = np.append(pitches, [note.value['fret'] + string_pitch])
+                # Extract the note's interval
+                interval = np.array([note.time, note.time + note.duration])
+                # Convert interval times from ticks to seconds
+                interval = (60 / tempo) * interval / guitarpro.Duration.quarterTime
+                # Append the note's interval
+                intervals = np.append(intervals, [interval], axis=0)
 
-        # Convert onset and offset times from ticks to seconds
-        intervals = (60 / tempo) * intervals / guitarpro.Duration.quarterTime
-
-        # Add the pitch-interval pairs to the stacked notes dictionary under the string entry as key
-        stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, string_pitch))
+            # Add the pitch-interval pairs to the stacked notes dictionary under the string entry
+            stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, string_pitch))
 
     # Re-order keys starting from lowest string and switch to the corresponding note label
     stacked_notes = {librosa.midi_to_note(i) : stacked_notes[i] for i in sorted(stacked_notes.keys())}
