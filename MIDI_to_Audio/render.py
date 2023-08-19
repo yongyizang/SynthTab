@@ -10,10 +10,6 @@ import librosa
 import torch
 import torchcrepe
 
-
-
-
-
 SAMPLE_RATE = 44100
 
 BUFFER_SIZE = 128 # Parameters will undergo automation at this buffer/block size.
