@@ -31,7 +31,7 @@ graph = [
     (synth, ["DI"])
 ]
 
-def run_audio(audio_path):
+def run_audio(audio_path, input_dir, output_dir):
     DI = engine.make_playback_processor("DI", load_audio_file(wav))
     for item in range(8):
         synth.set_parameter(item+1, np.random.uniform(0,1))
@@ -40,22 +40,34 @@ def run_audio(audio_path):
     engine.render(get_audio_length(audio))
     audio = engine.get_audio()
     audio = audio / np.max(np.abs(audio))
-    sf.write(wav, audio.T, SAMPLE_RATE)
 
     state_dictionary = {}
     for i in range(8):
         state_dictionary[synth.get_parameter_name(i+1)] = synth.get_parameter(i+1)
-    
+
+    wav = wav.replace(input_dir, output_dir)
+    if not os.path.exists(os.path.dirname(wav)):
+        os.makedirs(os.path.dirname(wav))
+
+    sf.write(wav, audio.T, SAMPLE_RATE)
     with open(wav[:-5] + "_amp_states.json", "w") as f:
         json.dump(state_dictionary, f)
 
 if __name__ == "__main__":
     input_dir = sys.argv[1]
-    audio_list = glob.glob(input_dir + "/*.flac")
-    print("Found {} audio files.".format(len(audio_list)))
-    print("Warning: This script will overwrite any existing files with the same name! Are you sure you want to continue? (y/n)")
-    if input() != "y" and input() != "Y":
-        sys.exit(0)
-    print("Processing {} audio files...".format(len(audio_list)))
-    with mp.Pool(mp.cpu_count()) as pool:
-        tqdm(pool.imap_unordered(run_audio, audio_list), total=len(audio_list), desc="Processing audio files")
+    output_dir = sys.argv[2]
+    zip_list = glob.glob(input_dir + "/*.zip")
+    print("Found {} zip files.".format(len(zip_list)))
+    for zip_file in zip_list:
+        # Unzip
+        print("Unzipping {}...".format(zip_file))
+        os.system("unzip {} -d {}".format(zip_file, input_dir))
+        # get zip directory
+        zip_dir = zip_file[:-4]
+        audio_list = glob.glob(zip_dir + "/**/*.flac", recursive=True)
+        print("Found {} audio files.".format(len(audios)))
+        print("Processing {} audio files...".format(len(audio_list)))
+        with mp.Pool(mp.cpu_count()) as pool:
+            tqdm(pool.imap_unordered(run_audio, audio_list, input_dir, output_dir), total=len(audio_list), desc="Processing audio files")
+        # Remove zip directory
+        shutil.rmtree(zip_dir)
