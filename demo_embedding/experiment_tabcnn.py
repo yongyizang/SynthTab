@@ -225,7 +225,15 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
     tabcnn.train()
 
     # Initialize a new optimizer for the model parameters
-    optimizer = torch.optim.Adadelta(tabcnn.parameters(), lr=1.0)
+    # optimizer = torch.optim.Adadelta(tabcnn.parameters(), lr=1.0)
+    
+    # Yongyi updated 09/01: maybe try adam with weight decay
+    optimizer = torch.optim.AdamW(tabcnn.parameters(), lr=1e-3, weight_decay=1e-5)
+    
+    # Also adding a lr scheduler
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=True)
+    
+    train_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     print('Training model...')
 
@@ -237,6 +245,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                    train_loader=train_loader,
                    optimizer=optimizer,
                    epochs=epochs,
+                   scheduler=train_scheduler,
                    checkpoints=checkpoints,
                    log_dir=model_dir,
                    val_set=synthtab_val,
