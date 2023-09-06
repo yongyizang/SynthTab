@@ -108,11 +108,18 @@ def write_jams_guitarpro(gpro_path, jams_dir):
             # Write the note predictions to a JAMS object
             jam = note_tracker.write_jams()
 
-            # Create a new annotation for tempo changes
-            tempo_data = jams.Annotation(namespace='tempo')
+            # Add the total duration to the top-level file meta-data
+            jam.file_metadata.duration = tempo_changes[-1][0] - tempo_changes[0][0]
 
-            # Keep track of the cumulative duration of each tempo
-            total_duration = 0
+            # Write track meta-data to the JAMS object
+            jam.sandbox.update(instrument=gpro_track.channel.instrument,
+                               fret_count=gpro_track.fretCount)
+
+            # Create a label for the track based on the encoded instrument
+            track_label = f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}'
+
+            # Create a new annotation for all tempo changes
+            all_tempo_data = jams.Annotation(namespace='tempo')
 
             # Loop through tempo changes
             for i in range(1, len(tempo_changes)):
@@ -120,25 +127,40 @@ def write_jams_guitarpro(gpro_path, jams_dir):
                 tick, tempo = tempo_changes[i - 1]
                 # Compute the amount of ticks for which tempo is valid
                 duration = tempo_changes[i][0] - tempo_changes[i - 1][0]
-                # Add an entry for the tempo change to the JAMS data
-                tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
-                # Accumulate the duration of the tempo
-                total_duration += duration
+                # Add the tempo change to the top-level JAMS data
+                all_tempo_data.append(time=tick, value=tempo, duration=duration, confidence=1.0)
 
-            # Add the annotation to the JAMS object
-            jam.annotations.append(tempo_data)
+                if len(tempo_changes) > 2:
+                    # Slice the top-level jam to the duration of the tempo
+                    jam_slice = jam.slice(tick, tick + duration)
 
-            # Add the total duration to the top-level file meta-data
-            jam.file_metadata.duration = total_duration
+                    # Create a new annotation for the tempo of the slice
+                    tempo_data = jams.Annotation(namespace='tempo')
+                    # Add an entry denoting the tempo to the JAMS slice
+                    tempo_data.append(time=0, value=tempo, duration=duration, confidence=1.0)
 
-            # Write track meta-data to the JAMS object
-            jam.sandbox.update(instrument=gpro_track.channel.instrument,
-                               fret_count=gpro_track.fretCount)
+                    # Add the annotation to the JAMS object
+                    jam_slice.annotations.append(tempo_data)
 
-            # Construct a path for saving the JAMS data
-            jams_path = os.path.join(jams_dir, f'{t + 1} - {VALID_INSTRUMENTS[gpro_track.channel.instrument]}.jams')
+                    # Create a new directory for JAMS annotations sliced by tempo
+                    tempo_split_dir = os.path.join(jams_dir, f'{track_label} - tempo_slices')
 
-            # Save as a JAMS file
+                    # Make sure the directory for the slices exists
+                    os.makedirs(tempo_split_dir, exist_ok=True)
+
+                    # Construct a path for saving the JAMS data for the current tempo
+                    tempo_split_path = os.path.join(tempo_split_dir, f'{i}.jams')
+
+                    # Save the sliced JAMS data
+                    jam_slice.save(tempo_split_path)
+
+            # Add all tempo changes to the top-level JAMS data
+            jam.annotations.append(all_tempo_data)
+
+            # Construct a path for saving the top-level JAMS data
+            jams_path = os.path.join(jams_dir, f'{track_label}.jams')
+
+            # Save the JAMS data
             jam.save(jams_path)
 
 
@@ -152,6 +174,8 @@ if __name__ == '__main__':
     # Search the specified directory for valid GuitarPro files
     tracked_files, tracked_dirs = get_valid_files(gpro_dir)
 
+    fw = open('error_files.txt', 'w')
+
     # Loop through the tracked GuitarPro files
     for gpro_file, dir in zip(tracked_files, tracked_dirs):
         print(f'Processing track \'{gpro_file}\'...')
@@ -161,4 +185,10 @@ if __name__ == '__main__':
         jams_dir = os.path.join(dir, gpro_file.replace('.', ' - '))
 
         # Perform the conversion
-        write_jams_guitarpro(gpro_path, jams_dir)
+        try:
+            write_jams_guitarpro(gpro_path, jams_dir)
+        except:
+            print(f'error_track: \'{gpro_file}\'...')
+            fw.write(gpro_path + '\n')
+
+    fw.close()

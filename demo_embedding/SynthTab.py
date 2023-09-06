@@ -36,15 +36,14 @@ def load_stacked_notes_jams(jams_path):
       Dictionary containing (slice -> (pitches, intervals)) pairs
     """
 
-    # Load the data from the JAMS file
+    # Load data from the JAMS file
     jam = jams.load(jams_path)
 
     # Extract all midi note annotations
     note_data_slices = jam.annotations['note_tab']
 
-    # Extract the tempo from the annotation
-    # TODO - dealing with changing tempos
-    tempo = jam.annotations['tempo'].pop().data[0].value
+    # Extract the tempo change annotations
+    all_tempos = jam.annotations['tempo'][0].data
 
     # Initialize a dictionary to hold the notes
     stacked_notes = dict()
@@ -52,17 +51,17 @@ def load_stacked_notes_jams(jams_path):
     # Loop through the slices of the stack
     for slice_notes in note_data_slices:
         # Initialize lists to hold the pitches and intervals
-        pitches, intervals = list(), list()
+        pitches, intervals_ticks = list(), list()
 
         # Loop through the notes pertaining to this slice
         for note in slice_notes:
             # Append the note's fret
             pitches.append(note.value['fret'])
             # Append the note's onset and offset (in ticks)
-            intervals.append([note.time, note.time + note.duration])
+            intervals_ticks.append([note.time, note.time + note.duration])
 
         # Convert the pitch and interval lists to arrays
-        pitches, intervals = np.array(pitches), np.array(intervals)
+        pitches, intervals_ticks = np.array(pitches), np.array(intervals_ticks)
 
         # Extract the open string pitch for the string
         string_pitch = slice_notes.sandbox['open_tuning']
@@ -70,8 +69,20 @@ def load_stacked_notes_jams(jams_path):
         # Add open-string tuning to obtain pitches
         pitches += string_pitch
 
-        # Convert onset and offset times from ticks to seconds
-        intervals = (60 / tempo) * intervals / guitarpro.Duration.quarterTime
+        # Create an array with same shape as the tick intervals
+        intervals = np.zeros(intervals_ticks.shape, dtype=float)
+
+        for tempo_change in all_tempos:
+            # Extract relevant tempo information
+            tempo = tempo_change.value
+            onset = tempo_change.time
+            duration = tempo_change.duration
+
+            # Determine the amount of ticks within the tempo boundaries that come before each interval time
+            num_ticks = np.maximum(np.minimum(intervals_ticks - onset, duration), 0)
+
+            # Accumulate the time elapsed in seconds before each onset or offset
+            intervals += (60 / tempo) * num_ticks / guitarpro.Duration.quarterTime
 
         # Add the pitch-interval pairs to the stacked notes dictionary under the string entry as key
         stacked_notes.update(tools.notes_to_stacked_notes(pitches, intervals, string_pitch))

@@ -171,7 +171,7 @@ def synthtab_experiment(sample_rate, hop_length, num_frames, epochs, checkpoints
                               profile=profile,
                               reset_data=reset_data,
                               store_data=False,
-                              save_data=True,
+                              save_data=False, # Better set to False unless you have larger than 1TB Storage, when doing large dataset training
                               save_loc=cache_dir,
                               seed=seed)
 

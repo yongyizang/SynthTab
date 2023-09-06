@@ -1,8 +1,9 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
 
-from guitarpro import NoteType, Duration
+from guitarpro import NoteType, Duration, Velocities
 from copy import deepcopy
 
+import warnings
 import jams
 
 
@@ -62,7 +63,7 @@ class Note(object):
         self.duration = duration
         self.string = string
 
-        self.effects = dict()
+        self.effects = []
 
     def set_duration(self, new_duration):
         """
@@ -76,20 +77,7 @@ class Note(object):
 
         self.duration = new_duration
 
-    def setAttrEffect(self, **kwargs):
-        """
-        Insert additional information to tracked note techniques and effects.
-
-        Parameters
-        ----------
-        kwargs : dict
-          Attributes to add
-        """
-
-        # Add specified attributes to effects
-        self.effects.update(**kwargs)
-
-    def parseNoteEffect(self, effect):
+    def parseNoteEffect(self, effect, onset, duration):
         """
         Parse effect attributes relevant for our purposes.
 
@@ -101,27 +89,30 @@ class Note(object):
 
         # TODO - Add helpful comments and hints to this function
 
+        # Create a new dictionary to hold any effects
+        effects = dict()
+
         # Encode boolean attributes...
         if effect.accentuatedNote:
-            self.setAttrEffect(accentuated_note=True)
+            effects.update({'accentuated_note' : True})
         if effect.ghostNote:
-            self.setAttrEffect(ghost_note=True)
+            effects.update({'ghost_note' : True})
         if effect.hammer:
             # Next note will be a hammer-on or pull-off
-            self.setAttrEffect(hammer=True)
+            effects.update({'hammer' : True})
         if effect.heavyAccentuatedNote:
-            self.setAttrEffect(heavy_accentuated_note=True)
+            effects.update({'heavy_accentuated_note' : True})
         if effect.letRing:
-            self.setAttrEffect(let_ring=True)
+            effects.update({'let_ring' : True})
         if effect.palmMute:
-            self.setAttrEffect(palm_mute=True)
+            effects.update({'palm_mute' : True})
         if effect.staccato:
-            self.setAttrEffect(staccato=True)
+            effects.update({'staccato' : True})
         if effect.vibrato:
-            self.setAttrEffect(vibrato=True)
+            effects.update({'vibrato' : True})
 
         if len(effect.slides):
-            self.setAttrEffect(slide=[s.name for s in effect.slides])
+            effects.update({'slide' : [s.name for s in effect.slides]})
 
         if effect.isBend:
             # Extract information regarding the bend points
@@ -129,19 +120,18 @@ class Note(object):
                                                   6 * p.value / 12,
                                                   p.vibrato) for p in effect.bend.points])
 
-            self.setAttrEffect(bend={'type' : effect.bend.type.name,
-                                     'points' : {'position' : positions, # % of duration
-                                                 'height' : heights, # semitones
-                                                 'vibrato' : vibratos}})
+            effects.update({'bend' : {'type' : effect.bend.type.name,
+                                      'points' : {'position' : positions, # % of duration
+                                                  'height' : heights, # semitones
+                                                  'vibrato' : vibratos}}})
 
         if effect.isGrace:
-            self.setAttrEffect(grace={'fret' : effect.grace.fret,
-                                      'transition' : effect.grace.transition.name,
-                                      'velocity' : effect.grace.velocity,
-                                      'duration' : effect.grace.durationTime, # TODO - this function appears to
-                                                                              #        have a bug, check back later
-                                      'on_beat' : effect.grace.isOnBeat,
-                                      'dead' : effect.grace.isDead})
+            effects.update({'grace' : {'fret' : effect.grace.fret,
+                                       'transition' : effect.grace.transition.name,
+                                       'velocity' : effect.grace.velocity,
+                                       'duration' : effect.grace.durationTime,
+                                       'on_beat' : effect.grace.isOnBeat,
+                                       'dead' : effect.grace.isDead}})
 
         if effect.isHarmonic:
             if effect.harmonic.type == 1:
@@ -164,17 +154,23 @@ class Note(object):
             else:
                 harmonic = {'type' : 'semi'}
 
-            self.setAttrEffect(harmonic=harmonic)
+            effects.update({'harmonic' : harmonic})
 
         # TODO - the following durations might be for whole duration of effect,
         #        not individual notes - may need to factor in tuplet information
 
         if effect.isTremoloPicking:
-            self.setAttrEffect(tremolo={'duration' : effect.tremoloPicking.duration.time})
+            effects.update({'tremolo' : {'duration' : effect.tremoloPicking.duration.time}})
 
         if effect.isTrill:
-            self.setAttrEffect(trill={'fret' : effect.trill.fret,
-                                      'duration' : effect.trill.duration.time})
+            effects.update({'trill' : {'fret' : effect.trill.fret,
+                                       'duration' : effect.trill.duration.time}})
+
+        if len(effects):
+            # Add onset and duration of the tracked effects
+            effects.update({'time' : onset, 'duration' : duration})
+            # Add the effects to the note
+            self.effects.append(effects)
 
 
 class NoteTracker(object):
@@ -256,6 +252,9 @@ class NoteTracker(object):
         # Extract the string, fret, and velocity of the note
         string_idx, fret, velocity = gpro_note.string, gpro_note.value, gpro_note.velocity
 
+        # Make sure a velocity is set for the note
+        velocity = max(velocity, Velocities.minVelocity)
+
         # Scale the duration by the duration percentage
         duration = round(duration * gpro_note.durationPercent)
 
@@ -263,13 +262,17 @@ class NoteTracker(object):
         note = Note(fret, onset, velocity, duration, string_idx)
 
         # Parse the relevant techniques and effects
-        note.parseNoteEffect(gpro_note.effect)
+        note.parseNoteEffect(gpro_note.effect, onset, duration)
 
         if gpro_note.type == NoteType.dead:
-            # Add as a technique attribute
-            note.setAttrEffect(dead_note=True)
-
-        # TODO - handle BeatEffect (not MixTableChange)
+            if len(note.effects):
+                # Add to existing effects
+                note.effects[0].update({'dead_note' : True})
+            else:
+                # Add as a new effects entry
+                note.effects.append({'time' : onset,
+                                     'duration' : duration,
+                                     'dead_note' : True})
 
         if gpro_note.type == NoteType.tie:
             # Obtain the last note that occurred on the string
@@ -277,11 +280,14 @@ class NoteTracker(object):
                              if len(self.gpro_notes[string_idx]) else None
             # Determine if the last note should be extended
             if last_gpro_note is not None:
-                # TODO - carry over any effects from previous note (e.g. bends)
                 # Determine how much to extend the note
                 new_duration = onset - last_gpro_note.onset + duration
                 # Extend the previous note by the current beat's duration
                 last_gpro_note.set_duration(new_duration)
+                # Parse any effects on the tie and add them to the last note
+                last_gpro_note.parseNoteEffect(gpro_note.effect, onset, duration)
+            else:
+                warnings.warn('No last note for tie...', RuntimeWarning)
         else:
             # Add the new note to the dictionary under the respective string
             self.gpro_notes[string_idx].append(note)
@@ -309,8 +315,11 @@ class NoteTracker(object):
             for n in self.gpro_notes[s]:
                 # Dictionary of tablature note attributes
                 value = {'fret' : n.fret, 'velocity' : n.velocity}
-                # Add any note effects to the dictionary
-                value.update(n.effects)
+
+                if len(n.effects):
+                    # Add any note effects to the dictionary
+                    value.update({'effects' : n.effects})
+
                 # Add an annotation for the note
                 string_data.append(time=n.onset, duration=n.duration, value=value)
             # Add the annotation to the JAMS object
@@ -478,7 +487,7 @@ def parse_notes_gpro_track(gpro_track, default_tempo):
         # Add the measure ticks to the total ticks
         total_ticks += measure_ticks[0]
         # Check if all ticks were counted
-        if measure_ticks[0] != measure.length:
+        if measure_ticks[0] < measure.length:
             # Compute the number of ticks missing
             remaining_ticks = measure.length - measure_ticks[0]
             # Add the remaining measure ticks
