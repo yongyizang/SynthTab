@@ -1,4 +1,6 @@
 # Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
+import pdb
+import random
 
 # My imports
 from amt_tools.datasets import TranscriptionDataset
@@ -130,6 +132,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
         lick_dir = os.path.join(self.base_dir, 'dataset2')
         piece_dir = os.path.join(self.base_dir, 'dataset3')
 
+
         if split == 'isolated_clean':
             # Start with all tracks under the lick directory
             tracks = os.listdir(os.path.join(lick_dir, 'audio'))
@@ -148,13 +151,25 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             # Remove licks and recordings of clean notes
             tracks = [os.path.join('dataset2', t) for t in tracks
                       if 'fret_0-20' not in t and 'Lick' not in t]
-        elif split == 'licks':
+
+        # add splits for 'licks_train', 'licks_val', 'licks_test'
+        elif split == 'licks_train':
             # Start with all tracks under the lick directory
             tracks = os.listdir(os.path.join(lick_dir, 'audio'))
             # Keep only the licks
-            tracks = [os.path.join('dataset2', t)
-                      for t in tracks if 'Lick' in t]
-        else:
+            tracks = [os.path.join('dataset2', t) for t in tracks if (('Lick' in t) and ('Lick8' not in t) and ('Lick10' not in t))]
+        elif split == 'licks_val':
+            tracks = os.listdir(os.path.join(lick_dir, 'audio'))
+            # Keep only the licks
+            tracks = [os.path.join('dataset2', t) for t in tracks if
+                      'Lick8' in t]
+        elif split == 'licks_test':
+            tracks = os.listdir(os.path.join(lick_dir, 'audio'))
+            # Keep only the licks
+            tracks = [os.path.join('dataset2', t) for t in tracks if
+                      'Lick10' in t]
+
+        elif split == 'pieces':
             # Obtain all tracks under the piece directory
             tracks = [os.path.join('dataset3', t)
                       for t in os.listdir(os.path.join(piece_dir, 'audio'))]
@@ -292,7 +307,7 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
           Different sections of dataset
         """
 
-        splits = ['isolated_clean', 'isolated_techniques', 'licks', 'pieces']
+        splits = ['isolated_clean', 'isolated_techniques', 'licks', 'pieces', 'licks_train', 'licks_val', 'licks_test']
 
         return splits
 

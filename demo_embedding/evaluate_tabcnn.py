@@ -3,7 +3,7 @@
 # My imports
 from IDMT_SMT_Guitar import IDMT_SMT_Guitar
 from EGDB import EGDB
-from amt_tools.datasets import GuitarSet
+from GuitarSet import GuitarSet
 from amt_tools.features import CQT
 
 from amt_tools.transcribe import ComboEstimator, \
@@ -15,6 +15,8 @@ from amt_tools.evaluate import ComboEvaluator, \
                                TablatureEvaluator, \
                                SoftmaxAccuracy, \
                                validate
+import amt_tools.tools as tools
+
 
 # Regular imports
 import torch
@@ -22,7 +24,9 @@ import os
 
 
 # Construct the path to the model to evaluate
-model_path = os.path.join('.', 'generated', 'experiments', '<EXPERIMENT_DIR>', 'models', 'model-<CHECKPOINT>.pt')
+# model_path = os.path.join('.', 'generated', 'experiments', '<EXPERIMENT_DIR>', 'models', 'model-<CHECKPOINT>.pt')
+
+
 
 # Number of samples per second of audio
 sample_rate = 22050
@@ -31,7 +35,11 @@ hop_length = 512
 # Flag to re-acquire ground-truth data and re-calculate features
 reset_data = False
 # Choose the GPU on which to perform evaluation
-gpu_id = 0
+gpu_id = 1
+
+seed = 505
+
+tools.seed_everything(seed)
 
 # Initialize a device pointer for loading the models
 device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
@@ -62,12 +70,23 @@ data_proc = CQT(sample_rate=sample_rate,
 gset_base_dir = None
 idmt_base_dir = None
 egdb_base_dir = None
+# gset_base_dir = os.path.join('/home/finch/external_ssd', 'GuitarSet')
+# idmt_base_dir = os.path.join('/home/finch/external_ssd', 'IDMT-SMT-GUITAR-dataset')
+# egdb_base_dir = os.path.join('/home/finch/external_ssd', 'EGDB')
 
 # Keep all cached data/features here
 cache_dir = os.path.join('.', 'generated', 'data')
 
 # Instantiate GuitarSet for testing
+
+train_splits = GuitarSet.available_splits()
+test_splits = [train_splits.pop()]
+val_splits = [train_splits.pop()]
+
+
+
 gset_test = GuitarSet(base_dir=gset_base_dir,
+                      splits=['09'],
                       hop_length=hop_length,
                       sample_rate=sample_rate,
                       num_frames=None,
@@ -75,11 +94,14 @@ gset_test = GuitarSet(base_dir=gset_base_dir,
                       profile=model.profile,
                       store_data=False,
                       reset_data=reset_data,
-                      save_loc=cache_dir)
+                      save_loc=cache_dir,
+                      seed=seed,
+                      )
 
 # Instantiate IDMT-SMT-Guitar for testing
 idmt_test = IDMT_SMT_Guitar(base_dir=idmt_base_dir,
-                            splits=['licks', 'pieces'],
+                            splits=['licks_test'],
+                            # splits=['pieces'],  # 2 choice for IDMT
                             hop_length=hop_length,
                             sample_rate=sample_rate,
                             num_frames=None,
@@ -91,7 +113,7 @@ idmt_test = IDMT_SMT_Guitar(base_dir=idmt_base_dir,
 
 # Instantiate EGDB (direct input only) for testing
 egdb_test = EGDB(base_dir=egdb_base_dir,
-                 splits=['DI'],
+                 splits=['DI_test'],  # test for DI
                  hop_length=hop_length,
                  sample_rate=sample_rate,
                  num_frames=None,
