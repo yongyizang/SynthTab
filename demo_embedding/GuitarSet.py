@@ -2,8 +2,8 @@
 import pdb
 
 # My imports
-from .common import TranscriptionDataset
-from .. import tools
+from amt_tools.datasets.common import TranscriptionDataset
+from amt_tools import tools
 
 # Regular imports
 from mirdata.datasets import guitarset
