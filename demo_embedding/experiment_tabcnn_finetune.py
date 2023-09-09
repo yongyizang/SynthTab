@@ -49,7 +49,7 @@ else:
     from amt_tools.models import TabCNN
     from tabcnn import TabCNNLarge, TabCNN
 
-FINETUNE_DATASET = 'IDMT' # valid: Guitarset, EGDB_DI, IDMT
+FINETUNE_DATASET = 'IDMT' # valid: GuitarSet, EGDB, IDMT
 
 EX_NAME = '_'.join([TabCNN.model_name(),
                     FINETUNE_DATASET,
