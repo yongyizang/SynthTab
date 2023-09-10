@@ -162,17 +162,19 @@ class IDMT_SMT_Guitar(TranscriptionDataset):
             tracks = os.listdir(os.path.join(lick_dir, 'audio'))
             # Keep only the licks
             tracks = [os.path.join('dataset2', t) for t in tracks if
-                      'Lick8' in t]
+                      'Lick10' in t]
         elif split == 'licks_test':
             tracks = os.listdir(os.path.join(lick_dir, 'audio'))
             # Keep only the licks
             tracks = [os.path.join('dataset2', t) for t in tracks if
-                      'Lick10' in t]
+                      'Lick8' in t]
 
         elif split == 'pieces':
             # Obtain all tracks under the piece directory
             tracks = [os.path.join('dataset3', t)
                       for t in os.listdir(os.path.join(piece_dir, 'audio'))]
+            tracks.remove('dataset3/nocturneNr2.wav')
+
 
         # Remove the .wav extension and sort the track names
         tracks = sorted([os.path.splitext(t)[0] for t in tracks])

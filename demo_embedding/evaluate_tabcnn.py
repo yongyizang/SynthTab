@@ -111,6 +111,17 @@ idmt_test = IDMT_SMT_Guitar(base_dir=idmt_base_dir,
                             reset_data=reset_data,
                             save_loc=cache_dir)
 
+idmt_pieces = IDMT_SMT_Guitar(base_dir=idmt_base_dir,
+                            splits=['pieces'],
+                            hop_length=hop_length,
+                            sample_rate=sample_rate,
+                            num_frames=num_frame,
+                            data_proc=data_proc,
+                            profile=model.profile,
+                            store_data=False,
+                            reset_data=reset_data,
+                            save_loc=cache_dir)
+
 # Instantiate EGDB (direct input only) for testing
 egdb_test = EGDB(base_dir=egdb_base_dir,
                  splits=['DI_test'],  # test for DI
@@ -135,6 +146,14 @@ validation_evaluator.reset_results()
 idmt_results = validate(model, idmt_test, evaluator=validation_evaluator, estimator=validation_estimator)
 
 print(f'Results on IDMT-SMT-Guitar: {idmt_results}')
+
+# Reset the evaluator
+validation_evaluator.reset_results()
+
+# Compute the average results on IDMT-SMT-Guitar
+idmt_pieces_results = validate(model, idmt_pieces, evaluator=validation_evaluator, estimator=validation_estimator)
+
+print(f'Results on IDMT-SMT-Guitar-pieces: {idmt_pieces_results}')
 
 # Reset the evaluator
 validation_evaluator.reset_results()

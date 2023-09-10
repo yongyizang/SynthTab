@@ -148,6 +148,9 @@ class EGDB(TranscriptionDataset):
                 tracks = tracks[-48:-24]
             elif set == 'test':
                 tracks = tracks[-24:]
+                tracks.remove('DI/104')
+                tracks.remove('DI/105')
+                tracks.remove('DI/166')
         else:
             tracks = [os.path.join(_split, str(t + 1)) for t in range(240)]
 
