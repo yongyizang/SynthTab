@@ -1,11 +1,15 @@
 # SynthTab: Leveraging Synthesized Data for Guitar Tablature Transcription
 Yongyi Zang*, Yi Zhong* (Equal Contribution), Frank Cwitkowitz, Zhiyao Duan
 
-We created a large-scale synthesized guitar tablature dataset to address the low-resource problem in guitar tablature transcription. This repository contains code for our rendering pipeline, along with our baseline models (TabCNN, TabCNN+) and our trained embeddings.
+We created a large-scale synthesized guitar tablature dataset to address the low-resource problem in guitar tablature transcription. This repository contains code for our rendering pipeline, along with our baseline models (TabCNN, TabCNNx4) and our trained embeddings.
 
 [[Project Website](https://synthtab.dev/)] [[Paper Link](https://arxiv.org/pdf/2309.09085.pdf)] 
 
+![Performance](Performance.png)
+
+
 ## Updates
+- **Feb 2023**: The full SynthTab dataset has been uploaded to MEGA and Baidu Netdisk. Feel free to download and use it!
 - **Dec 2023**: SynthTab is accepted at ICASSP 2024!
 
 ## Cite Us
@@ -22,9 +26,9 @@ If you use SynthTab as part of your research, please cite us according to the fo
 
 ## Downloading SynthTab
 
-The development set of SynthTab is available at [here](https://rochester.app.box.com/v/SynthTab-Dev).
+The development set of SynthTab is available at [here](https://rochester.app.box.com/v/SynthTab-Dev). This is a relatively small set that can help you start developing, and train later on the larger full dataset.
 
-Due to the large size of SynthTab, we temporarily host it at this [MEGA folder](https://mega.nz/folder/ZG9BgB6a#BnZ5MruFQsRdgraOBYh60Q). Additionally, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content for several regions. Total file size is close to and less than 2 TB.
+Due to the large size of SynthTab, we temporarily host it at this [MEGA folder](https://mega.nz/folder/ZG9BgB6a#BnZ5MruFQsRdgraOBYh60Q). If you are in mainland China, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content. Total file size is close to and less than 2 TB.
 
 SynthTab is released with CC BY-NC 4.0 license (learn more about it [here](https://creativecommons.org/licenses/by-nc/4.0/deed.en)).
 
@@ -33,14 +37,17 @@ File structure is as follows:
 SynthTab
 |---all_jams_midi_V2_60000_tracks.zip
 |---acoustic
-|---electric_clean
-|---electric_distortion
-|---electric_muted
+|---electric
+|---|---electric_clean
+|---|---electric_distortion
+|---|---electric_muted
 ```
 
-The JAMS files are stored separatedly in `all_jams_midi_V2_60000_tracks.zip`. It is relatively small at around 1 GB. `acoustic`, `electric_clean`, `electric_distortion` and `electric_muted` all contains different timbres as `*.zip` files inside them.
+Note that you don't have to download the full list of timbres; you can easily choose what you need. For both MEGA and Baidu Netdisk, `acoustic`, `electric_clean`, `electric_distortion` and `electric_muted` directories contain different timbres as `*.zip` files. The JAMS files are stored separatedly in `all_jams_midi_V2_60000_tracks.zip`. It is relatively small at around 1 GB. 
 
 Within each song's rendered files, we also provide per-string extracted fundamental frequency (stored as `*.pkl` files). We used the YIN algorithm for this. See `MIDI_to_Audio/render.py` for the exact implementation of the extraction process.
+
+Although for training the baseline models, we downsampled the dataset to 22050 Hz, the original dataset is rendered at 44100 Hz, and is therefore provided as such. For more detailed description of this process, please refer to our paper.
 
 ## Structure
 This repository is modular, as every part of it can be re-used to generate other similar dataset using our methodology. The repository is structured as follows:
