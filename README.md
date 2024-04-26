@@ -28,7 +28,7 @@ If you use SynthTab as part of your research, please cite us according to the fo
 
 The development set of SynthTab is available at [here](https://rochester.app.box.com/v/SynthTab-Dev). This is a relatively small set that can help you start developing, and train later on the larger full dataset.
 
-Due to the large size of SynthTab, we temporarily host it at this [MEGA folder](https://mega.nz/folder/ZG9BgB6a#BnZ5MruFQsRdgraOBYh60Q). If you are in mainland China, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content. Total file size is close to and less than 2 TB.
+The full dataset is hosted at [UR Box](https://rochester.box.com/s/u7ghpy6ucxn2al3l8awyikfn12zapt1q). If you are in mainland China, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content. Total file size is close to and less than 2 TB. You should be able to download only the parts you need.
 
 SynthTab is released with CC BY-NC 4.0 license (learn more about it [here](https://creativecommons.org/licenses/by-nc/4.0/deed.en)).
 
@@ -37,13 +37,17 @@ File structure is as follows:
 SynthTab
 |---all_jams_midi_V2_60000_tracks.zip
 |---acoustic
+|---|---gibson_thumb
+|---|---|---part_1_-_1_to_B_C_.zip
+|---|---|---...
+|---|---...
 |---electric
 |---|---electric_clean
 |---|---electric_distortion
 |---|---electric_muted
 ```
 
-Note that you don't have to download the full list of timbres; you can easily choose what you need. For both MEGA and Baidu Netdisk, `acoustic`, `electric_clean`, `electric_distortion` and `electric_muted` directories contain different timbres as `*.zip` files. The JAMS files are stored separatedly in `all_jams_midi_V2_60000_tracks.zip`. It is relatively small at around 1 GB. 
+Each zip file is less than 50 GB, so you could only download the parts you need. `acoustic`, `electric_clean`, `electric_distortion` and `electric_muted` directories contain different timbres as `*.zip` files. The JAMS files are stored separatedly in `all_jams_midi_V2_60000_tracks.zip`. It is relatively small at around 1 GB. 
 
 Within each song's rendered files, we also provide per-string extracted fundamental frequency (stored as `*.pkl` files). We used the YIN algorithm for this. See `MIDI_to_Audio/render.py` for the exact implementation of the extraction process.
 
