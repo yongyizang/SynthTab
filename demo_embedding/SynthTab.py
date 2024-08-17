@@ -1,9 +1,4 @@
-# Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
-
-# My imports
 from amt_tools.datasets import TranscriptionDataset
-#from augment_new import augment_mic_signals
-from augment import process_audio_signals
 
 import amt_tools.tools as tools
 
@@ -326,12 +321,7 @@ class SynthTab(TranscriptionDataset):
                     # Pad the ground-truth onset activations to the corresponding number of frames
                     stacked_onsets = np.pad(stacked_onsets, ((0, 0), (0, 0), (0, frames_missing)))
 
-        if self.augment_audio:
-            # Augment and mix the separate microphone signals
-            audio = process_audio_signals(audio, seq_length)
-        else:
-            # Randomly sample one of the microphone signals
-            audio = audio[self.rng.randint(0, audio.shape[0])].unsqueeze(0)
+        audio = audio[self.rng.randint(0, audio.shape[0])].unsqueeze(0)
 
         # Compute features for the sampled audio snippet
         features = self.data_proc.process_audio(audio.squeeze().numpy())

@@ -1,6 +1,3 @@
-# Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
-
-# My imports
 from amt_tools.evaluate import validate, append_results, average_results, log_results
 from amt_tools import tools
 

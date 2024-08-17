@@ -1,6 +1,3 @@
-# Author: Frank Cwitkowitz <fcwitkow@ur.rochester.edu>
-
-# My imports
 from amt_tools.datasets import TranscriptionDataset
 
 import amt_tools.tools as tools
@@ -11,6 +8,7 @@ import librosa
 import gdown
 import mido
 import os
+import random
 
 
 def load_stacked_notes_midi(midi_path):
@@ -116,7 +114,7 @@ class EGDB(TranscriptionDataset):
         super().__init__(base_dir, splits, hop_length, sample_rate, data_proc, profile, num_frames,
                          audio_norm, False, reset_data, store_data, save_data, save_loc, seed)
 
-    def get_tracks(self, split):
+    def get_tracks(self, _split):
         """
         Get the names of the tracks in the dataset.
 
@@ -132,7 +130,27 @@ class EGDB(TranscriptionDataset):
         """
 
         # Naming scheme specifies amplifier with tracks numbered 1-240
-        tracks = [os.path.join(split, str(t + 1)) for t in range(240)]
+        if len(_split.split('_')) == 2:
+            type, set = _split.split('_')
+            tracks = [os.path.join(type, str(t + 1)) for t in range(240)]
+            rng1 = random.Random(505)
+            rng1.shuffle(tracks)
+
+            if set == 'train':
+                tracks = tracks[:-48]
+                tracks.remove('DI/165') # skip the only one shorter than 500 frames
+
+            elif set == 'val':
+                tracks = tracks[-48:-24]
+            elif set == 'test':
+                tracks = tracks[-24:]
+                tracks.remove('DI/104')
+                tracks.remove('DI/105')
+                tracks.remove('DI/166')
+        else:
+            tracks = [os.path.join(_split, str(t + 1)) for t in range(240)]
+
+        print(tracks)
 
         return tracks
 
@@ -251,7 +269,7 @@ class EGDB(TranscriptionDataset):
           Different amplifiers of dataset
         """
 
-        splits = ['DI', 'Ftwin', 'JCjazz', 'Marshall', 'Mesa', 'Plexi']
+        splits = ['DI', 'Ftwin', 'JCjazz', 'Marshall', 'Mesa', 'Plexi', 'DI_train', 'DI_val', 'DI_test']
 
         return splits
 
