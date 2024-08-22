@@ -28,7 +28,7 @@ If you use SynthTab as part of your research, please cite us according to the fo
 
 The development set of SynthTab is available at [here](https://rochester.app.box.com/v/SynthTab-Dev). This is a relatively small set that can help you start developing, and train later on the larger full dataset.
 
-The full dataset is hosted at [UR Box](https://rochester.box.com/s/u7ghpy6ucxn2al3l8awyikfn12zapt1q). If you are in mainland China, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content. Total file size is close to and less than 2 TB. You should be able to download only the parts you need.
+The full dataset is hosted at [UR Box](https://rochester.app.box.com/v/SynthTab-Full). If you are in mainland China, we provide a [Baidu Netdisk link](https://pan.baidu.com/s/1PF8EAHkHmFhx7ySVRbWMDA) (Password: gjwq) for easy access of the same content. Total file size is close to and less than 2 TB. You should be able to download only the parts you need.
 
 SynthTab is released with CC BY-NC 4.0 license (learn more about it [here](https://creativecommons.org/licenses/by-nc/4.0/deed.en)).
 
