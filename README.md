@@ -7,6 +7,15 @@ We created a large-scale synthesized guitar tablature dataset to address the low
 
 ![Performance](Performance.png)
 
+## Known Bugs
+
+Thanks to Jackson Loth from QMUL, we discovered some rendering bugs in our pipeline. When two same-pitched notes are played on the same string in sequence with no gap in between (i.e. first note's offset == second note's onset), the commericial VST we used would sometimes ignore the second note.
+
+For acoustic guitars, 8994/11132 (80.8%) of the songs are affected; each song contains a mean of 1.48 seconds and standard deviation of 4.77 seconds of affected regions. For each acoustic guitar that contains these bugs, 127.66/3511.35 (3.63%) hours of total playing time is problematic. The most affected song contains 423 seconds of bug, while the least affected song contains 0.026 seconds of it.
+
+For electric guitars, 32179/38838 (82.9%) of the songs are affected; each song contains a mean of 1.08 seconds and standard deviation of 4.97 seconds of affected regions. For each electric guitar that contains these bugs, 340.73/9601.54 (3.55%) hours of total playing time is problematic. The most affected song contains 472 seconds of bug, while the least affected song contains 0.011 seconds of it. It's worth noting that due to the large size of the dataset, we did not render all electric guitar MIDIs, but randomly sampled from the pool; so the distribution should be similar, but the exact numbers may differ.
+
+We will release the exact timestamps of problematic regions soon.
 
 ## Updates
 - **Feb 2023**: The full SynthTab dataset has been uploaded to MEGA and Baidu Netdisk. Feel free to download and use it!
